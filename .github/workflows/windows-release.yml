@@ -47,7 +47,7 @@ jobs:
             Write-Host "Release $tag already exists, deleting it for a clean re-upload."
             gh release delete $tag --yes --cleanup-tag
           }
-          gh release create $tag --title "键盘小黑猫 $tag" --notes "Windows 构建，含 KeyboardCat.exe 与安装包。本版新增手柄模式：支持 Xbox 手柄（XInput）与 PS5 DualSense 手柄（原生 HID），自动切换手柄/键盘模式；另含 星期三、咖啡、英短银渐层猫咪样式。" $exeEn $installerEn
+          gh release create $tag --title "键盘小黑猫 $tag" --notes "Windows 构建，含 KeyboardCat.exe 与安装包。本版新增 暹罗猫（重点色蓝眼睛）。含手柄模式（Xbox / PS5 DualSense 自动切换），以及 星期三、咖啡、英短银渐层猫咪样式。" $exeEn $installerEn
           # Verify the release actually carries both files under their English names.
           $expected = @([System.IO.Path]::GetFileName($exeEn), [System.IO.Path]::GetFileName($installerEn))
           $assets = gh release view $tag --json assets --jq '.assets[].name'

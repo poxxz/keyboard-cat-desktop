@@ -1,4 +1,4 @@
-public enum CatStyle { Black, Ginger, JapaneseBobtail, PhotoTabby, Wednesday, Coffee, SilverShaded }
+public enum CatStyle { Black, Ginger, JapaneseBobtail, PhotoTabby, Wednesday, Coffee, SilverShaded, Siamese }
 public enum KeyboardStyle { Classic, Round, Neon, Wood }
 public enum MouseStyle { Classic, Pebble, Gaming, Trackball }
 public enum GamepadStyle { Xbox, PS5 }

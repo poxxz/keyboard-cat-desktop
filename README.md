@@ -1,6 +1,6 @@
 # 键盘小黑猫
 
-本 fork 新增三只猫：金色眼睛的星期三、简州虎斑白猫咖啡、英短银渐层（在托盘菜单“猫咪样式”里切换）。
+本 fork 新增四只猫：金色眼睛的星期三、简州虎斑白猫咖啡、英短银渐层、暹罗猫（在托盘菜单“猫咪样式”里切换）。
 
 **[打开体验入口](https://keyboard-cat.app.workbuddy.host/?sharecode=6OHA4TQODE&shareId=8b833b2c65444fb4953ce4940ffc3a2e)** · [下载 Windows 和 macOS 安装包](https://github.com/liangcyprus855-ship-it/keyboard-cat-desktop/releases/latest)
 

@@ -21,6 +21,7 @@ internal sealed class StyleMenu : IDisposable
         Add(parent, "星期三", CatStyle.Wednesday, selected, choose);
         Add(parent, "咖啡", CatStyle.Coffee, selected, choose);
         Add(parent, "英短银渐层", CatStyle.SilverShaded, selected, choose);
+        Add(parent, "暹罗猫", CatStyle.Siamese, selected, choose);
         return parent;
     }
 
