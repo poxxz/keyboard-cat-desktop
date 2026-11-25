@@ -1,4 +1,4 @@
-﻿using System;
+using System;
 using System.Windows;
 using System.Windows.Media;
 
@@ -38,9 +38,10 @@ public static partial class CatArt
         return g;
     }
 
-    private static readonly Brush Fur = Wash(new byte[] { 31,29,32 }, new byte[] { 22,21,24 }, new Point(0,0), new Point(1,0.85));
+    private static readonly Brush Fur = WashAbsolute(new byte[] { 31,29,32 }, new byte[] { 22,21,24 }, new Point(160,102), new Point(268,222));
     private static readonly Brush Face = Wash(new byte[] { 32,30,32 }, new byte[] { 24,23,25 }, new Point(0,0), new Point(0.9,1));
-    private static readonly Brush Foreleg = Wash(new byte[] { 30,28,31 }, new byte[] { 24,23,26 }, new Point(0.2,0), new Point(0.9,1));
+    private static readonly Brush Foreleg = Fur;
+    private static readonly Brush BlackLidFur = Ink(29,27,30);
     private static readonly Brush Iris = Wash(new byte[] { 215,245,80 }, new byte[] { 182,224,62 }, new Point(0.2,0), new Point(0.83,1));
     private static readonly Brush Pupil = Ink(22,24,16);
     private static readonly Brush Ear = Ink(36,32,36);
@@ -81,21 +82,35 @@ public static partial class CatArt
 
     private static void Tail(DrawingContext dc, double t, bool ginger)
     {
-        double wave = Math.Sin(t * 1.9);
-        double tip = Math.Sin(t * 1.9 - 0.68);
+        TailMood(dc, t, ginger, default(CatMood));
+    }
+
+    private static void TailMood(DrawingContext dc, double t, bool ginger, CatMood mood)
+    {
+        double freq = 1.9 + mood.Anger * 3.0 + mood.Crouch * 2.4 - mood.Sleep * 1.2;
+        double amp = 1.0 + mood.Anger * 0.65 + mood.Crouch * 0.75 - mood.Sleep * 0.65;
+        double wave = Math.Sin(t * freq) * amp;
+        double tip = Math.Sin(t * freq - 0.68) * amp;
+        double droop = mood.Sleep * 24.0;
+        StreamGeometry tail = BuildTailGeometry(wave, tip, droop);
+        dc.DrawGeometry(ginger ? Ginger.TailFur : Fur, null, tail);
+        if (ginger) Ginger.DrawTailBands(dc, tail, wave, tip);
+    }
+
+    private static StreamGeometry BuildTailGeometry(double wave, double tip, double droop)
+    {
         StreamGeometry tail = new StreamGeometry();
         using (StreamGeometryContext g = tail.Open())
         {
             g.BeginFigure(new Point(251,199), true, true);
-            g.BezierTo(new Point(263,200),new Point(273,204),new Point(281,201 + wave * 1.3),true,true);
-            g.BezierTo(new Point(290,198),new Point(292,186 + wave * 2),new Point(300,177 + wave * 2.5),true,true);
-            g.BezierTo(new Point(307,169 + tip * 4),new Point(317,165 + tip * 5),new Point(325,166 + tip * 6),true,true);
-            g.BezierTo(new Point(335,167 + tip * 6),new Point(334,181 + tip * 6),new Point(324,181 + tip * 6),true,true);
-            g.BezierTo(new Point(311,180 + tip * 4),new Point(305,191),new Point(298,202 + wave * 2),true,true);
-            g.BezierTo(new Point(289,217 + wave),new Point(268,220),new Point(251,214),true,true);
+            g.BezierTo(new Point(263,200),new Point(273,204),new Point(281,201 + wave * 1.3 + droop * 0.3),true,true);
+            g.BezierTo(new Point(290,198),new Point(292,186 + wave * 2 + droop * 0.7),new Point(300,177 + wave * 2.5 + droop * 0.95),true,true);
+            g.BezierTo(new Point(307,169 + tip * 4 + droop),new Point(317,165 + tip * 5 + droop),new Point(325,166 + tip * 6 + droop),true,true);
+            g.BezierTo(new Point(335,167 + tip * 6 + droop),new Point(334,181 + tip * 6 + droop),new Point(324,181 + tip * 6 + droop),true,true);
+            g.BezierTo(new Point(311,180 + tip * 4 + droop * 0.9),new Point(305,191 + droop * 0.6),new Point(298,202 + wave * 2 + droop * 0.4),true,true);
+            g.BezierTo(new Point(289,217 + wave + droop * 0.2),new Point(268,220),new Point(251,214),true,true);
         }
-        dc.DrawGeometry(ginger ? Ginger.TailFur : Fur, null, tail);
-        if (ginger) Ginger.DrawTailBands(dc, tail, wave, tip);
+        return tail;
     }
 
     private static Point Cubic(Point a, Point b, Point c, Point d, double t)
@@ -105,17 +120,10 @@ public static partial class CatArt
                          z*z*z*a.Y+3*z*z*t*b.Y+3*z*t*t*c.Y+t*t*t*d.Y);
     }
 
-    private static void Arm(DrawingContext dc, bool left, Point paw, double lean, double activity, bool ginger, double pawRaised = -1)
+    private static StreamGeometry BuildArmGeometry(Point a, Point b, Point c, Point paw, double pawRadius)
     {
-        double side = left ? -1 : 1;
-        double raised = pawRaised >= 0 ? pawRaised : Smooth((221 - paw.Y)/32);
-        Point a = new Point(214 + side*26 - 29*lean, 140);
-        double dx = paw.X-a.X, dy=paw.Y-a.Y;
-        Point b = new Point(a.X + dx*0.25 + side*(4+8*raised), a.Y+dy*0.37);
-        Point c = new Point(a.X + dx*0.79 + side*(4+20*raised), paw.Y-15+raised*41);
-        double pawRadius = 8.4 + Limit(activity,0,1)*1.0;
         StreamGeometry limb = new StreamGeometry { FillRule = FillRule.Nonzero };
-        const int count = 18;
+        const int count = 24;
         Point[] secondSide = new Point[count+1];
         using (StreamGeometryContext g = limb.Open())
         {
@@ -126,7 +134,10 @@ public static partial class CatArt
                 Vector tangent = Cubic(a,b,c,paw,Math.Min(1,u+0.01)) - Cubic(a,b,c,paw,Math.Max(0,u-0.01));
                 if (tangent.Length < 0.001) tangent = new Vector(0,1);
                 tangent.Normalize();
-                double width = (12.8 + (pawRadius - 12.8)*Smooth(u)) * (0.08 + 0.92 * Smooth(u / 0.19));
+                double baseW = 12.8 + (pawRadius - 12.8)*Smooth(u);
+                double k = Limit(u / 0.14, 0, 1);
+                double dome = 0.22 + 0.78 * Math.Sqrt(Math.Max(0, 1 - (1 - k) * (1 - k)));
+                double width = baseW * dome;
                 Vector offset = new Vector(-tangent.Y*width,tangent.X*width);
                 Point first = mid+offset;
                 secondSide[i] = mid-offset;
@@ -135,6 +146,40 @@ public static partial class CatArt
             }
             for (int i=count; i>=0; --i) g.LineTo(secondSide[i],true,true);
         }
+        return limb;
+    }
+
+    private static Point ShoulderPoint(bool left, double lean, double sxScale, double syScale)
+    {
+        double side = left ? -1 : 1;
+        double rawSy = 136.0 - (left ? 10.0 * lean : 0.0);
+        double sy = 235.0 + (rawSy - 235.0) * syScale;
+        double sxShear = (sy - 233.0) * 0.282 * lean;
+        return new Point(214.0 + side * (23.5 * sxScale + (left ? 3.2 * lean : 0.0)) + sxShear, sy);
+    }
+
+    private static void ComputeArmControls(Point a, Point paw, double side, double raised, out Point b, out Point c)
+    {
+        double dx = paw.X - a.X, dy = paw.Y - a.Y;
+        double high = Smooth((185.0 - paw.Y) / 55.0);
+        Point bLow = new Point(a.X + dx * 0.21 + side * (5.5 + 7.5 * raised), a.Y + dy * 0.35);
+        Point cLow = new Point(a.X + dx * 0.78 + side * (4.0 + 20.0 * raised), paw.Y - 15.0 + raised * 41.0);
+        Point bHigh = new Point(a.X + dx * 0.32 + side * 6.0, a.Y + dy * 0.28 + 12.0);
+        Point cHigh = new Point(a.X + dx * 0.72 + side * 4.0, a.Y + dy * 0.72 + 8.0);
+        b = new Point(bLow.X + (bHigh.X - bLow.X) * high, bLow.Y + (bHigh.Y - bLow.Y) * high);
+        c = new Point(cLow.X + (cHigh.X - cLow.X) * high, cLow.Y + (cHigh.Y - cLow.Y) * high);
+    }
+
+    private static void Arm(DrawingContext dc, bool left, Point paw, double lean, double activity, bool ginger,
+                            double pawRaised = -1, double sxScale = 1, double syScale = 1)
+    {
+        double side = left ? -1 : 1;
+        double raised = pawRaised >= 0 ? pawRaised : Smooth((221 - paw.Y)/32);
+        Point a = ShoulderPoint(left, lean, sxScale, syScale);
+        Point b, c;
+        ComputeArmControls(a, paw, side, raised, out b, out c);
+        double pawRadius = 8.4 + Limit(activity,0,1)*1.0;
+        StreamGeometry limb = BuildArmGeometry(a, b, c, paw, pawRadius);
         dc.DrawGeometry(ginger ? Ginger.LegFur : Foreleg, null, limb);
         if (ginger)
         {
@@ -158,7 +203,8 @@ public static partial class CatArt
         }
     }
 
-    private static void Eye(DrawingContext dc, double side, double gx, double gy, double blink, bool ginger)
+    private static void Eye(DrawingContext dc, double side, double gx, double gy, double blink, bool ginger,
+                            double anger = 0, double angerBreath = 0.5, double crouch = 0)
     {
         double angle = side*3 + gx*4;
         double x = side*19.1 + gx*2.6;
@@ -181,9 +227,12 @@ public static partial class CatArt
             EllipseGeometry iris = new EllipseGeometry(new Point(x,y),width,height);
             dc.DrawGeometry(ginger ? Ginger.Iris : Iris,ginger ? Ginger.EyeEdge : null,iris);
             dc.PushClip(iris);
-            if (ginger) Ginger.DrawPupil(dc, x, y, gx, gy);
-            else dc.DrawEllipse(Pupil,null,new Point(x+gx*7.8,y+gy*6.7),4.3+Math.Abs(gy)*0.8,8.1);
+            double boost = 1.0 + 0.16 * crouch;
+            if (ginger) Ginger.DrawPupil(dc, x, y, gx, gy, crouch);
+            else dc.DrawEllipse(Pupil,null,new Point(x+gx*7.8,y+gy*6.7),(4.3+Math.Abs(gy)*0.8)*boost,8.1*boost);
             dc.Pop();
+            if (anger > .01)
+                DrawAngryEyelid(dc, x, y, width, height, side, ginger ? Ginger.LidFur : BlackLidFur, ginger ? Ginger.Lid : Lid, anger, angerBreath);
         }
         dc.Pop();
     }
@@ -214,16 +263,16 @@ public static partial class CatArt
 
     public static void DrawStyled(DrawingContext dc, CatStyle style, double t, double gazeX, double gazeY,
                                   double blink, Point leftPaw, Point rightPaw, double leftActivity, double rightActivity,
-                                  double pawRaised = -1, Action<DrawingContext> between = null)
+                                  double pawRaised = -1, Action<DrawingContext> between = null, CatMood mood = default(CatMood))
     {
         if (style == CatStyle.PhotoTabby)
         {
-            TabbyArt.Draw(dc,t,gazeX,gazeY,blink,leftPaw,rightPaw,leftActivity,rightActivity,between);
+            TabbyArt.Draw(dc,t,gazeX,gazeY,blink,leftPaw,rightPaw,leftActivity,rightActivity,between,pawRaised,mood);
             return;
         }
         if (style == CatStyle.JapaneseBobtail)
         {
-            BobtailArt.Draw(dc,t,gazeX,gazeY,blink,leftPaw,rightPaw,leftActivity,rightActivity,between);
+            BobtailArt.Draw(dc,t,gazeX,gazeY,blink,leftPaw,rightPaw,leftActivity,rightActivity,between,pawRaised,mood);
             return;
         }
         bool ginger = style == CatStyle.Ginger;
@@ -232,19 +281,42 @@ public static partial class CatArt
         bool siamese = style == CatStyle.Siamese;
         bool styled = coffee || silver || siamese || style == CatStyle.Wednesday;
         double gx=Limit(gazeX,-1,1), gy=Limit(gazeY,-1,1);
-        double lean=Smooth((157-leftPaw.X)/50);
-        double breath=Math.Sin(t*1.7)*0.72;
-        if (styled) TailStyled(dc,t,style); else Tail(dc,t,ginger);
+        double sleep = Limit(mood.Sleep, 0, 1);
+        double crouch = Limit(mood.Crouch, 0, 1);
+        double highLeft = Smooth((195 - leftPaw.Y) / 45);
+        double lean=Smooth((157-leftPaw.X)/50) * (1 - sleep) * (1 - highLeft);
+        double breath=Math.Sin(t*(sleep > 0.5 ? 1.15 : 1.7))*(sleep > 0.5 ? 1.7 : 0.72);
+        double angerBreath = 0.5 + 0.5 * Math.Sin(t * 6.8);
+        if (styled) TailStyled(dc,t,style,mood); else TailMood(dc,t,ginger,mood);
 
-        // Keep the hips planted while the chest follows the outstretched mouse paw.
+        double syScale = 1.0 - 0.45 * sleep - 0.10 * crouch;
+        double sxScale = 1.0 + 0.04 * sleep + 0.04 * crouch;
+        Brush bodyBrush = siamese ? Siamese.BodyFur : silver ? SilverShaded.BodyFur : coffee ? Coffee.BodyFur : ginger ? Ginger.BodyFur : Fur;
+
+        // Keep the hips planted while the chest follows the outstretched mouse paw, and squash cleanly for sleep/crouch.
         dc.PushTransform(new MatrixTransform(1,0,lean*0.282,1, -233*lean*0.282,0));
+        dc.PushTransform(new TranslateTransform(214, 235));
+        dc.PushTransform(new ScaleTransform(sxScale, syScale));
+        dc.PushTransform(new TranslateTransform(-214, -235));
         // Forelegs overlap one solid torso at every reach, including two-key chords.
-        dc.DrawGeometry(siamese ? Siamese.BodyFur : silver ? SilverShaded.BodyFur : coffee ? Coffee.BodyFur : ginger ? Ginger.BodyFur : Fur, null, Body);
+        dc.DrawGeometry(bodyBrush, null, Body);
         if (ginger) Ginger.DrawBodyMarkings(dc, Body);
         else if (coffee) Coffee.DrawBodyMarkings(dc, Body);
         else if (silver) SilverShaded.DrawBodyMarkings(dc, Body);
         else if (siamese) Siamese.DrawBodyMarkings(dc, Body);
         dc.Pop();
+        dc.Pop();
+        dc.Pop();
+        dc.Pop();
+
+        // Rounded loaf back dome during sleep removes any flat top-edge discontinuity.
+        if (sleep > 0.1)
+        {
+            dc.PushOpacity(Smooth((sleep - 0.1) / 0.5));
+            dc.DrawEllipse(bodyBrush, null, new Point(214, 198), 53.0, 36.0);
+            dc.Pop();
+        }
+
         // A caller-supplied layer goes here, between the torso and the
         // forelegs: the gamepad sits in front of the chest and under the
         // paws that hold it. Drawing it before DrawStyled would leave it
@@ -252,18 +324,25 @@ public static partial class CatArt
         if (between != null) between(dc);
         if (styled)
         {
-            ArmStyled(dc,false,rightPaw,lean,rightActivity,style,pawRaised);
-            ArmStyled(dc,true,leftPaw,lean,leftActivity,style,pawRaised);
+            ArmStyled(dc,false,rightPaw,lean,rightActivity,style,pawRaised,sxScale,syScale);
+            ArmStyled(dc,true,leftPaw,lean,leftActivity,style,pawRaised,sxScale,syScale);
         }
         else
         {
-            Arm(dc,false,rightPaw,lean,rightActivity,ginger,pawRaised);
-            Arm(dc,true,leftPaw,lean,leftActivity,ginger,pawRaised);
+            Arm(dc,false,rightPaw,lean,rightActivity,ginger,pawRaised,sxScale,syScale);
+            Arm(dc,true,leftPaw,lean,leftActivity,ginger,pawRaised,sxScale,syScale);
         }
 
-        dc.PushTransform(new TranslateTransform(214 - 45*lean + gx*3.2, 86 + breath + gy*2.0 + lean*1.2));
-        dc.PushTransform(new RotateTransform(gx*2.8 - lean*3.2));
-        if (styled) DrawHeadStyled(dc, style, gx, gy, blink); else DrawHead(dc, ginger, gx, gy, blink);
+        double hx = 214 - 36.8*lean + gx*3.2*(1 - sleep) - 2.0*sleep;
+        double hyNorm = 86 + breath + gy*2.0 + lean*1.4 + 12.0*crouch;
+        double hy = hyNorm + (180 + breath - hyNorm) * sleep;
+        double hrot = (gx*2.8 - lean*2.4)*(1 - sleep) - 8.5*sleep;
+        dc.PushTransform(new TranslateTransform(hx, hy));
+        dc.PushTransform(new RotateTransform(hrot));
+        if (styled) DrawHeadStyled(dc, style, gx, gy, blink, mood.Anger, angerBreath, crouch);
+        else DrawHeadMood(dc, ginger, gx, gy, blink, mood.Anger, angerBreath, crouch);
+        if (mood.Sweat > .01) DrawSweat(dc, t, mood.Sweat);
+        if (mood.Anger > .01) DrawAnger(dc, t, mood.Anger);
         dc.Pop();
         dc.Pop();
     }
@@ -287,42 +366,39 @@ public static partial class CatArt
             case CatStyle.JapaneseBobtail:
                 return BobtailArt.ContainsHead(pointer,time,gazeX,gazeY,leftPaw);
             default:
-                return Math.Pow((pointer.X - 212) / 63, 2) + Math.Pow((pointer.Y - 85) / 53, 2) < 1;
+                double lean = Smooth((157 - leftPaw.X) / 50);
+                double hx = 214 - 36.8 * lean + Limit(gazeX, -1, 1) * 3.2;
+                return Math.Pow((pointer.X - hx) / 63, 2) + Math.Pow((pointer.Y - 85) / 53, 2) < 1;
         }
     }
 
     private static void DrawHead(DrawingContext dc, bool ginger, double gx, double gy, double blink)
     {
+        DrawHeadMood(dc, ginger, gx, gy, blink, 0, 0.5, 0);
+    }
+
+    private static void DrawHeadMood(DrawingContext dc, bool ginger, double gx, double gy, double blink,
+                                     double anger, double angerBreath, double crouch)
+    {
         dc.DrawGeometry(ginger ? Ginger.HeadFur : Face, null, Head);
         dc.DrawGeometry(ginger ? Ginger.InnerEar : Ear, null, EarLeft);
         dc.DrawGeometry(ginger ? Ginger.InnerEar : Ear, null, EarRight);
         if (ginger) Ginger.DrawFaceMarkings(dc, Head, gx);
-        Eye(dc,-1,gx,gy,Limit(blink,0,1),ginger);
-        Eye(dc,1,gx,gy,Limit(blink,0,1),ginger);
+        Eye(dc,-1,gx,gy,Limit(blink,0,1),ginger,anger,angerBreath,crouch);
+        Eye(dc,1,gx,gy,Limit(blink,0,1),ginger,anger,angerBreath,crouch);
         Whiskers(dc,-1,gx,ginger);
         Whiskers(dc,1,gx,ginger);
     }
 
-    // Style-aware variants for Wednesday and Coffee. The original bool-based
-    // Tail/Arm/Eye/Whiskers/DrawHead above are kept untouched: ExportArt.cs
-    // calls Tail and DrawHead through reflection, and Black/Ginger keep the
-    // exact code path they had. Wednesday reuses the black cat's geometry and
-    // only swaps the iris and lid to gold; Coffee brings its own coat.
-    private static void TailStyled(DrawingContext dc, double t, CatStyle style)
+    // Style-aware variants for Wednesday, Coffee, SilverShaded and Siamese.
+    private static void TailStyled(DrawingContext dc, double t, CatStyle style, CatMood mood)
     {
-        double wave = Math.Sin(t * 1.9);
-        double tip = Math.Sin(t * 1.9 - 0.68);
-        StreamGeometry tail = new StreamGeometry();
-        using (StreamGeometryContext g = tail.Open())
-        {
-            g.BeginFigure(new Point(251,199), true, true);
-            g.BezierTo(new Point(263,200),new Point(273,204),new Point(281,201 + wave * 1.3),true,true);
-            g.BezierTo(new Point(290,198),new Point(292,186 + wave * 2),new Point(300,177 + wave * 2.5),true,true);
-            g.BezierTo(new Point(307,169 + tip * 4),new Point(317,165 + tip * 5),new Point(325,166 + tip * 6),true,true);
-            g.BezierTo(new Point(335,167 + tip * 6),new Point(334,181 + tip * 6),new Point(324,181 + tip * 6),true,true);
-            g.BezierTo(new Point(311,180 + tip * 4),new Point(305,191),new Point(298,202 + wave * 2),true,true);
-            g.BezierTo(new Point(289,217 + wave),new Point(268,220),new Point(251,214),true,true);
-        }
+        double freq = 1.9 + mood.Anger * 3.0 + mood.Crouch * 2.4 - mood.Sleep * 1.2;
+        double amp = 1.0 + mood.Anger * 0.65 + mood.Crouch * 0.75 - mood.Sleep * 0.65;
+        double wave = Math.Sin(t * freq) * amp;
+        double tip = Math.Sin(t * freq - 0.68) * amp;
+        double droop = mood.Sleep * 24.0;
+        StreamGeometry tail = BuildTailGeometry(wave, tip, droop);
         if (style == CatStyle.Coffee)
         {
             dc.DrawGeometry(Coffee.TailFur, null, tail);
@@ -337,36 +413,16 @@ public static partial class CatArt
         else dc.DrawGeometry(Fur, null, tail);
     }
 
-    private static void ArmStyled(DrawingContext dc, bool left, Point paw, double lean, double activity, CatStyle style, double pawRaised = -1)
+    private static void ArmStyled(DrawingContext dc, bool left, Point paw, double lean, double activity, CatStyle style,
+                                  double pawRaised = -1, double sxScale = 1, double syScale = 1)
     {
         double side = left ? -1 : 1;
         double raised = pawRaised >= 0 ? pawRaised : Smooth((221 - paw.Y)/32);
-        Point a = new Point(214 + side*26 - 29*lean, 140);
-        double dx = paw.X-a.X, dy=paw.Y-a.Y;
-        Point b = new Point(a.X + dx*0.25 + side*(4+8*raised), a.Y+dy*0.37);
-        Point c = new Point(a.X + dx*0.79 + side*(4+20*raised), paw.Y-15+raised*41);
+        Point a = ShoulderPoint(left, lean, sxScale, syScale);
+        Point b, c;
+        ComputeArmControls(a, paw, side, raised, out b, out c);
         double pawRadius = 8.4 + Limit(activity,0,1)*1.0;
-        StreamGeometry limb = new StreamGeometry { FillRule = FillRule.Nonzero };
-        const int count = 18;
-        Point[] secondSide = new Point[count+1];
-        using (StreamGeometryContext g = limb.Open())
-        {
-            for (int i = 0; i <= count; ++i)
-            {
-                double u = i/(double)count;
-                Point mid = Cubic(a,b,c,paw,u);
-                Vector tangent = Cubic(a,b,c,paw,Math.Min(1,u+0.01)) - Cubic(a,b,c,paw,Math.Max(0,u-0.01));
-                if (tangent.Length < 0.001) tangent = new Vector(0,1);
-                tangent.Normalize();
-                double width = (12.8 + (pawRadius - 12.8)*Smooth(u)) * (0.08 + 0.92 * Smooth(u / 0.19));
-                Vector offset = new Vector(-tangent.Y*width,tangent.X*width);
-                Point first = mid+offset;
-                secondSide[i] = mid-offset;
-                if (i==0) g.BeginFigure(first,true,true);
-                else g.LineTo(first,true,true);
-            }
-            for (int i=count; i>=0; --i) g.LineTo(secondSide[i],true,true);
-        }
+        StreamGeometry limb = BuildArmGeometry(a, b, c, paw, pawRadius);
         if (style == CatStyle.Coffee)
         {
             dc.DrawGeometry(Coffee.ForelegFur, null, limb);
@@ -375,13 +431,13 @@ public static partial class CatArt
         }
         if (style == CatStyle.SilverShaded)
         {
-            dc.DrawGeometry(SilverShaded.ForelegFur, null, limb);
+            dc.DrawGeometry(SilverShaded.ArmBrush(a, paw), null, limb);
             SilverShaded.DrawSock(dc, limb, paw, paw-c, pawRadius, activity);
             return;
         }
         if (style == CatStyle.Siamese)
         {
-            Siamese.DrawArm(dc, limb, paw, pawRadius, activity);
+            Siamese.DrawArm(dc, limb, a, paw, pawRadius, activity);
             return;
         }
         dc.DrawGeometry(Foreleg, null, limb);
@@ -402,7 +458,8 @@ public static partial class CatArt
         }
     }
 
-    private static void EyeStyled(DrawingContext dc, double side, double gx, double gy, double blink, CatStyle style)
+    private static void EyeStyled(DrawingContext dc, double side, double gx, double gy, double blink, CatStyle style,
+                                  double anger = 0, double angerBreath = 0.5, double crouch = 0)
     {
         bool coffee = style == CatStyle.Coffee;
         bool wednesday = style == CatStyle.Wednesday;
@@ -410,6 +467,7 @@ public static partial class CatArt
         bool siamese = style == CatStyle.Siamese;
         Pen lid = coffee ? Coffee.Lid : wednesday ? WednesdayLid : silver ? SilverShaded.Lid : siamese ? Siamese.Lid : Lid;
         Brush irisBrush = coffee ? Coffee.Iris : wednesday ? WednesdayIris : silver ? SilverShaded.Iris : siamese ? Siamese.Iris : Iris;
+        Brush lidFur = coffee ? Coffee.LidFur : silver ? SilverShaded.LidFur : siamese ? Siamese.LidFur : BlackLidFur;
         Pen edge = coffee ? Coffee.EyeEdge : silver ? SilverShaded.EyeEdge : siamese ? Siamese.EyeEdge : null;
         double angle = side*3 + gx*4;
         double x = side*19.1 + gx*2.6;
@@ -432,10 +490,13 @@ public static partial class CatArt
             EllipseGeometry iris = new EllipseGeometry(new Point(x,y),width,height);
             dc.DrawGeometry(irisBrush,edge,iris);
             dc.PushClip(iris);
-            if (coffee) Coffee.DrawPupil(dc, x, y, gx, gy);
-            else if (silver) SilverShaded.DrawPupil(dc, x, y, gx, gy);
-            else dc.DrawEllipse(Pupil,null,new Point(x+gx*7.8,y+gy*6.7),4.3+Math.Abs(gy)*0.8,8.1);
+            double boost = 1.0 + 0.16 * crouch;
+            if (coffee) Coffee.DrawPupil(dc, x, y, gx, gy, crouch);
+            else if (silver) SilverShaded.DrawPupil(dc, x, y, gx, gy, crouch);
+            else dc.DrawEllipse(Pupil,null,new Point(x+gx*7.8,y+gy*6.7),(4.3+Math.Abs(gy)*0.8)*boost,8.1*boost);
             dc.Pop();
+            if (anger > .01)
+                DrawAngryEyelid(dc, x, y, width, height, side, lidFur, lid, anger, angerBreath);
         }
         dc.Pop();
     }
@@ -463,20 +524,22 @@ public static partial class CatArt
         }
     }
 
-    private static void DrawHeadStyled(DrawingContext dc, CatStyle style, double gx, double gy, double blink)
+    private static void DrawHeadStyled(DrawingContext dc, CatStyle style, double gx, double gy, double blink,
+                                       double anger = 0, double angerBreath = 0.5, double crouch = 0)
     {
         bool coffee = style == CatStyle.Coffee;
         bool silver = style == CatStyle.SilverShaded;
         bool siamese = style == CatStyle.Siamese;
         dc.DrawGeometry(siamese ? Siamese.HeadFur : coffee ? Coffee.HeadFur : silver ? SilverShaded.HeadFur : Face, null, Head);
         if (siamese) Siamese.DrawEarFur(dc, Head);
+        else if (coffee) Coffee.DrawEarFur(dc, Head);
         dc.DrawGeometry(siamese ? Siamese.InnerEar : coffee ? Coffee.InnerEar : silver ? SilverShaded.InnerEar : Ear, null, EarLeft);
         dc.DrawGeometry(siamese ? Siamese.InnerEar : coffee ? Coffee.InnerEar : silver ? SilverShaded.InnerEar : Ear, null, EarRight);
         if (coffee) Coffee.DrawFaceMarkings(dc, Head, gx);
         else if (silver) SilverShaded.DrawFaceMarkings(dc, Head, gx);
         else if (siamese) Siamese.DrawFaceMarkings(dc, Head, gx);
-        EyeStyled(dc,-1,gx,gy,Limit(blink,0,1),style);
-        EyeStyled(dc,1,gx,gy,Limit(blink,0,1),style);
+        EyeStyled(dc,-1,gx,gy,Limit(blink,0,1),style,anger,angerBreath,crouch);
+        EyeStyled(dc,1,gx,gy,Limit(blink,0,1),style,anger,angerBreath,crouch);
         WhiskersStyled(dc,-1,gx,style);
         WhiskersStyled(dc,1,gx,style);
     }

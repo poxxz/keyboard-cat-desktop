@@ -4,53 +4,93 @@ using System.Windows.Media;
 
 public static partial class CatArt
 {
-    // Coffee is a Jianzhou tabby-and-white: brown tabby head, back and tail,
-    // white chest and belly, white legs and paws, white ring around the
-    // mouth, tabby nose bridge and forehead with the M, amber eyes, pink
-    // nose. Its coat markings sit on top of the same opaque rig used by
-    // the black cat. The white chest/belly meets the tabby sides in a soft
-    // fur-scalloped edge, not a straight cut.
+    // Coffee is a Jianzhou tabby-and-white with a signature open-face tabby mask:
+    // clean caramel-brown mask around the forehead, eyes and round cheeks,
+    // pure white lower face with a narrow inverted-V white nose blaze merging into
+    // the white chest/legs, minimal soft forehead & cheek stripes (Version A),
+    // warm apricot inner ears with dark ear tips, bright golden-amber eyes with
+    // sleek Wednesday-style oval pupils, pink nose, and crisp white whiskers.
     private static class Coffee
     {
-        internal static readonly Brush BodyFur = Coat(0xb98a5e,0x8a6742);
-        internal static readonly Brush HeadFur = Coat(0xc08d60,0x8f6a45);
-        internal static readonly Brush TailFur = Coat(0xb08254,0x84603c);
-        internal static readonly Brush ForelegFur = Coat(0xfffaf2,0xf1e6d6);
-        internal static readonly Brush InnerEar = Coat(0xe89a90,0xf5bfa8);
-        internal static readonly Brush Iris = Wash(new byte[]{222,164,84},new byte[]{190,128,52},new Point(.45,0),new Point(.55,1));
-        internal static readonly Pen Lid = Stroke(Ink(107,74,47),2.0);
-        internal static readonly Pen EyeEdge = Stroke(Ink(120,84,44),.85);
-        internal static readonly Pen Whisker = Stroke(Ink(140,110,80),.82);
-        internal static readonly Pen WhiskerRoot = Stroke(Ink(160,128,96),.85);
-        private static readonly Brush Marking = Ink(107,74,47);
-        private static readonly Brush SoftMarking = Ink(122,90,60);
-        private static readonly Brush Cream = Ink(255,250,244);
-        private static readonly Brush BibFur = Coat(0xfffaf2,0xf1e6d6);
-        private static readonly Brush NoseColor = Coat(0xdd8380,0xbf6e6b);
-        private static readonly Brush DarkEye = Ink(58,42,30);
-        private static readonly Brush Catchlight = Ink(255,250,229);
-        private static readonly Pen Lip = Stroke(Ink(120,80,55),1.25);
+        internal static readonly Brush BodyFur = Coat(0xa87b50, 0x7c5836);
+        internal static readonly Brush HeadFur = Wash(new byte[] { 0xcf, 0x9b, 0x61 }, new byte[] { 0x94, 0x68, 0x3d }, new Point(.25, .05), new Point(.85, .92));
+        internal static readonly Brush TailFur = Coat(0xa07449, 0x765232);
+        internal static readonly Brush ForelegFur = WashAbsolute(new byte[] { 0xff, 0xfc, 0xf8 }, new byte[] { 0xf2, 0xeb, 0xe0 }, new Point(175, 102), new Point(255, 239));
+        internal static readonly Brush LidFur = Ink(172, 124, 76);
+        internal static readonly Brush InnerEar = Wash(new byte[] { 0xe3, 0xb9, 0x92 }, new byte[] { 0xf7, 0xe4, 0xcd }, new Point(.2, 0), new Point(.8, 1));
+        internal static readonly Brush Iris = Wash(new byte[] { 0xf7, 0xc3, 0x38 }, new byte[] { 0xc4, 0x75, 0x0e }, new Point(.42, .05), new Point(.58, .98));
+        internal static readonly Pen Lid = Stroke(Ink(78, 52, 34), 2.1);
+        internal static readonly Pen EyeEdge = Stroke(Ink(58, 39, 24), 1.25);
+        internal static readonly Pen Whisker = Stroke(Ink(253, 250, 246), 1.0);
+        internal static readonly Pen WhiskerRoot = Stroke(Ink(225, 217, 206), .95);
+        private static readonly Brush CrownShade = Wash(new byte[] { 0x5a, 0x3e, 0x27 }, new byte[] { 0x94, 0x68, 0x3d }, new Point(.5, 0), new Point(.5, 1));
+        private static readonly Brush CheekDepth = Ink(112, 74, 42);
+        private static readonly Brush EarTipColor = Ink(54, 38, 26);
+        private static readonly Pen EarTuftPen = Stroke(Ink(249, 240, 226), .9);
+        private static readonly Brush EyeGlow = Ink(238, 202, 145);
+        private static readonly Brush IrisHighlight = Ink(255, 224, 110);
+        private static readonly Brush Marking = Ink(98, 66, 39);
+        private static readonly Brush SoftMarking = Ink(106, 72, 42);
+        private static readonly Brush TailMarking = Ink(88, 60, 36);
+        private static readonly Brush FlankMarking = Ink(94, 64, 38);
+        private static readonly Brush MaskFeather = Ink(225, 195, 156);
+        private static readonly Brush WhiteFace = Wash(new byte[] { 0xff, 0xfe, 0xfb }, new byte[] { 0xf5, 0xef, 0xe7 }, new Point(.5, 0), new Point(.5, 1));
+        private static readonly Brush JawShadow = Ink(230, 221, 208);
+        private static readonly Brush Cream = Ink(255, 252, 248);
+        private static readonly Brush BibFur = ForelegFur;
+        private static readonly Brush NoseColor = Wash(new byte[] { 0xf0, 0xa2, 0xa4 }, new byte[] { 0xcf, 0x78, 0x7d }, new Point(.3, 0), new Point(.7, 1));
+        private static readonly Brush NoseHighlight = Ink(255, 228, 228);
+        private static readonly Brush DarkEye = Ink(30, 23, 18);
+        private static readonly Brush Catchlight = Ink(255, 252, 238);
+        private static readonly Pen Lip = Stroke(Ink(142, 98, 84), 1.2);
+
+        private static readonly Geometry EarTipLeft = Shape("M -44,-49 Q -41,-59 -36,-63 Q -32,-63 -28,-57 Q -35,-54 -41,-49 Z");
+        private static readonly Geometry EarTipRight = Shape("M 28,-57 Q 33,-64 37,-63 Q 42,-58 44,-48 Q 39,-53 28,-57 Z");
+        private static readonly Geometry EarTufts = Shape(
+            "M -36,-39 Q -32,-44 -27,-42 M -38,-35 Q -33,-39 -29,-38 " +
+            "M 36,-39 Q 32,-44 27,-42 M 38,-35 Q 33,-39 29,-38");
+
+        // Version A: clean, restrained 3-stroke forehead tabby accent.
         private static readonly Geometry Forehead = Shape(
-            "M -18,-29 C -17,-35 -15,-42 -13,-48 L -7,-48 Q -4,-42 0,-39 " +
-            "Q 4,-42 7,-48 L 13,-48 Q 17,-40 16,-30 Q 12,-33 9,-41 " +
-            "Q 4,-36 .2,-32 Q -5,-35 -10,-41 Q -13,-33 -18,-29 Z");
-        private static readonly Geometry LeftCheek = Shape(
-            "M -52,-8 C -46,-9 -40,-8 -35,-4 Q -42,-3 -51,-3 Z " +
-            "M -51,1 Q -44,-1 -38,2 Q -43,4 -50,7 Z");
-        private static readonly Geometry RightCheek = Shape(
-            "M 51,-8 Q 42,-8 35,-4 Q 43,-3 51,-3 Z M 51,1 Q 44,0 38,3 Q 44,5 50,7 Z");
-        private static readonly Geometry Muzzle = Shape(
-            "M -26,10 C -24,3 -17,-1 -9,.6 C -5,.9 -2,3 0,4 C 5,1 11,-1 18,1 " +
-            "C 26,3 29,10 25,17 C 21,24 12,29 1,30 C -10,31 -21,28 -25,21 Q -29,16 -26,10 Z");
+            "M -2.2,-46.5 Q 0,-47.5 2.2,-46.5 Q 1.5,-39.5 0,-34.5 Q -1.5,-39.5 -2.2,-46.5 Z " +
+            "M -11.5,-45.5 Q -9.0,-46.5 -6.8,-44.8 Q -7.2,-38.5 -10.5,-33.8 Q -11.8,-39.5 -11.5,-45.5 Z " +
+            "M 11.5,-45.5 Q 9.0,-46.5 6.8,-44.8 Q 7.2,-38.5 10.5,-33.8 Q 11.8,-39.5 11.5,-45.5 Z");
+
+        // Version A: subtle 2 short cheek strokes per side.
+        private static readonly Geometry Cheeks = Shape(
+            "M -47.5,-9.5 Q -41.5,-10.2 -35.5,-8.0 Q -41.5,-6.6 -47.8,-6.2 Z " +
+            "M -46.8,0.5 Q -40.8,-0.2 -34.8,2.2 Q -40.8,3.6 -46.5,3.8 Z " +
+            "M 47.5,-9.5 Q 41.5,-10.2 35.5,-8.0 Q 41.5,-6.6 47.8,-6.2 Z " +
+            "M 46.8,0.5 Q 40.8,-0.2 34.8,2.2 Q 40.8,3.6 46.5,3.8 Z");
+
+        // Soft feathered rim & pure-white lower face with narrow inverted-V nose blaze,
+        // carving out Coffee's iconic round open-face tabby mask above.
+        private static readonly Geometry WhiteFaceRim = Shape(
+            "M 0,-18.8 " +
+            "C 2.0,-11.5 4.8,-3.5 9.2,2.6 " +
+            "C 13.5,8.2 19.5,12.4 26.8,14.5 " +
+            "Q 33.8,16.2 40.5,14.6 Q 46.2,13.2 51.5,9.5 " +
+            "L 52.5,38.0 L -52.5,38.0 L -51.5,9.5 " +
+            "Q -46.2,13.2 -40.5,14.6 Q -33.8,16.2 -26.8,14.5 " +
+            "C -19.5,12.4 -13.5,8.2 -9.2,2.6 " +
+            "C -4.8,-3.5 -2.0,-11.5 0,-18.8 Z");
+
+        private static readonly Geometry WhiteLowerFace = Shape(
+            "M 0,-17.0 " +
+            "C 1.6,-10.2 4.0,-2.6 8.2,3.4 " +
+            "C 12.4,9.2 18.2,13.8 25.5,16.0 " +
+            "Q 29.8,17.3 34.4,17.2 Q 39.2,17.0 43.8,15.2 Q 48.0,13.4 51.5,10.8 " +
+            "L 52.5,38.0 L -52.5,38.0 L -51.5,10.8 " +
+            "Q -48.0,13.4 -43.8,15.2 Q -39.2,17.0 -34.4,17.2 Q -29.8,17.3 -25.5,16.0 " +
+            "C -18.2,13.8 -12.4,9.2 -8.2,3.4 " +
+            "C -4.0,-2.6 -1.6,-10.2 0,-17.0 Z");
+
         private static readonly Geometry Nose = Shape(
-            "M -4.8,5 Q -3.7,2.9 0,3.9 Q 3.8,2.8 5.0,4.9 Q 5.2,6.4 2.2,8.8 Q .3,10.4 -.8,9.7 Q -5.3,6.9 -4.8,5 Z");
+            "M -4.9,5.0 Q -3.7,2.9 0,3.9 Q 3.8,2.8 5.0,4.9 Q 5.2,6.5 2.2,8.9 Q .3,10.5 -.8,9.8 Q -5.3,6.9 -4.9,5.0 Z");
         private static readonly Geometry Smile = Shape(
-            "M 0,9 L 0,12.3 C -1.5,15.8 -5.5,16 -7.8,13 M 0,12.3 C 1.9,15.4 5.6,15.7 8,12.9");
-        // White chest and belly. The side edges are a soft fur scallop:
-        // a chain of quadratic half-waves (wavelength ~25, visible peak
-        // ~4) around the same chest-to-belly envelope as before, slightly
-        // irregular so it reads as fur, not a machine ripple. Clipped to
-        // the body in DrawBodyMarkings, so the outer bulges never spill.
+            "M 0,9.2 L 0,12.4 C -1.5,15.8 -5.4,16.0 -7.6,13.1 M 0,12.4 C 1.8,15.4 5.5,15.7 7.8,13.0");
+
+        // White chest and belly with soft fur-scalloped edges.
         private static readonly Geometry Bib = Shape(
             "M 182,102 C 189,112 205,110 214,111 C 225,110 240,111 244,102 " +
             "Q 250.8,108 245.6,114 Q 238.5,120.8 247.4,127.5 " +
@@ -75,71 +115,116 @@ public static partial class CatArt
         private static readonly Geometry TailBand = Shape(
             "M -3,-13 Q .7,-11 4,-13 Q 1,0 4,13 Q -.2,11 -3,13 Q -4.4,0 -3,-13 Z");
 
-        private static Brush Coat(int a,int b)
+        private static Brush Coat(int a, int b)
         {
-            return Wash(new byte[]{(byte)(a>>16),(byte)(a>>8),(byte)a},
-                        new byte[]{(byte)(b>>16),(byte)(b>>8),(byte)b},
-                        new Point(.22,0),new Point(.82,1));
+            return Wash(new byte[] { (byte)(a >> 16), (byte)(a >> 8), (byte)a },
+                        new byte[] { (byte)(b >> 16), (byte)(b >> 8), (byte)b },
+                        new Point(.22, 0), new Point(.82, 1));
         }
 
         internal static void DrawTailBands(DrawingContext dc, Geometry tail, double wave, double tip)
         {
             dc.PushClip(tail);
-            TailMark(dc,TailBand,Marking,275,208+wave*.7,-7);
-            TailMark(dc,TailBand,Marking,289.5,203+wave*1.7,-43+wave*3);
-            TailMark(dc,TailBand,Marking,304,183+wave*2.5,-48+tip*4);
-            TailMark(dc,TailBand,Marking,320,174+tip*5,-13+tip*8);
+            TailMark(dc, TailBand, TailMarking, 275, 208 + wave * .7, -7);
+            TailMark(dc, TailBand, TailMarking, 289.5, 203 + wave * 1.7, -43 + wave * 3);
+            TailMark(dc, TailBand, TailMarking, 304, 183 + wave * 2.5, -48 + tip * 4);
+            TailMark(dc, TailBand, TailMarking, 320, 174 + tip * 5, -13 + tip * 8);
             dc.Pop();
         }
 
-        private static void TailMark(DrawingContext dc,Geometry shape,Brush color,double x,double y,double angle)
+        private static void TailMark(DrawingContext dc, Geometry shape, Brush color, double x, double y, double angle)
         {
-            dc.PushTransform(new TranslateTransform(x,y));
+            dc.PushTransform(new TranslateTransform(x, y));
             dc.PushTransform(new RotateTransform(angle));
-            dc.DrawGeometry(color,null,shape);
+            dc.DrawGeometry(color, null, shape);
             dc.Pop();
             dc.Pop();
         }
 
-        internal static void DrawBodyMarkings(DrawingContext dc,Geometry body)
+        internal static void DrawBodyMarkings(DrawingContext dc, Geometry body)
         {
             dc.PushClip(body);
-            dc.DrawGeometry(SoftMarking,null,Flanks);
-            dc.DrawGeometry(BibFur,null,Bib);
+            dc.PushOpacity(.68);
+            dc.DrawGeometry(FlankMarking, null, Flanks);
+            dc.Pop();
+            dc.DrawGeometry(BibFur, null, Bib);
             dc.Pop();
         }
 
-        internal static void DrawSock(DrawingContext dc,Geometry arm,Point paw,Vector direction,double radius,double activity)
+        internal static void DrawSock(DrawingContext dc, Geometry arm, Point paw, Vector direction, double radius, double activity)
         {
-            if (direction.LengthSquared < .001) direction = new Vector(0,1);
+            if (direction.LengthSquared < .001) direction = new Vector(0, 1);
             direction.Normalize();
-            // Foreleg is pure white; the sock and paw stay white with it.
             dc.PushClip(arm);
-            dc.PushTransform(new MatrixTransform(direction.Y,-direction.X,direction.X,direction.Y,paw.X,paw.Y));
-            dc.DrawGeometry(Cream,null,FrontSock);
+            dc.PushTransform(new MatrixTransform(direction.Y, -direction.X, direction.X, direction.Y, paw.X, paw.Y));
+            dc.DrawGeometry(Cream, null, FrontSock);
             dc.Pop();
             dc.Pop();
-            dc.DrawEllipse(Cream,null,paw,radius+.35,radius*(.94-.06*activity));
+            dc.DrawEllipse(Cream, null, paw, radius + .35, radius * (.94 - .06 * activity));
         }
 
-        internal static void DrawPupil(DrawingContext dc,double x,double y,double gx,double gy)
+        // Sleek smaller vertical-oval pupil inspired by Wednesday, with lively gaze travel and delicate catchlight.
+        internal static void DrawPupil(DrawingContext dc, double x, double y, double gx, double gy, double crouch)
         {
-            Point pupil=new Point(x+gx*5.2,y+gy*4.2);
-            dc.DrawEllipse(DarkEye,null,pupil,7.7,10.15);
-            dc.DrawEllipse(Catchlight,null,new Point(pupil.X-2.15,pupil.Y-3.55),2.45,2.5);
-            dc.DrawEllipse(Catchlight,null,new Point(pupil.X+3.25,pupil.Y+4.6),.85,.83);
+            dc.PushOpacity(.24);
+            dc.DrawEllipse(IrisHighlight, null, new Point(x, y + 2.5), 9.2, 8.0);
+            dc.Pop();
+            double boost = 1.0 + 0.16 * crouch;
+            Point pupil = new Point(x + gx * 7.4, y + gy * 6.2);
+            double rx = (4.4 + Math.Abs(gy) * 0.75) * boost;
+            double ry = 8.2 * boost;
+            dc.DrawEllipse(DarkEye, null, pupil, rx, ry);
+            dc.DrawEllipse(Catchlight, null, new Point(pupil.X - 1.5, pupil.Y - 2.9), 1.55, 1.65);
         }
 
-        internal static void DrawFaceMarkings(DrawingContext dc,Geometry head,double gx)
+        // Drawn before EarLeft/EarRight so crown shading and dark ear tips sit cleanly behind the inner ears.
+        internal static void DrawEarFur(DrawingContext dc, Geometry head)
         {
             dc.PushClip(head);
-            dc.DrawGeometry(Marking,null,Forehead);
-            dc.DrawGeometry(SoftMarking,null,LeftCheek);
-            dc.DrawGeometry(SoftMarking,null,RightCheek);
-            dc.PushTransform(new TranslateTransform(gx*2.9,0));
-            dc.DrawGeometry(Cream,null,Muzzle);
-            dc.DrawGeometry(null,Lip,Smile);
-            dc.DrawGeometry(NoseColor,null,Nose);
+            dc.PushOpacity(.22);
+            dc.DrawEllipse(CrownShade, null, new Point(0, -45), 32, 13);
+            dc.Pop();
+            dc.PushOpacity(.16);
+            dc.DrawEllipse(CheekDepth, null, new Point(-45, -4), 12, 18);
+            dc.DrawEllipse(CheekDepth, null, new Point(45, -4), 12, 18);
+            dc.Pop();
+            dc.PushOpacity(.88);
+            dc.DrawGeometry(EarTipColor, null, EarTipLeft);
+            dc.DrawGeometry(EarTipColor, null, EarTipRight);
+            dc.Pop();
+            dc.Pop();
+        }
+
+        internal static void DrawFaceMarkings(DrawingContext dc, Geometry head, double gx)
+        {
+            dc.PushClip(head);
+            dc.PushOpacity(.75);
+            dc.DrawGeometry(null, EarTuftPen, EarTufts);
+            dc.Pop();
+            dc.PushOpacity(.34);
+            dc.DrawEllipse(EyeGlow, null, new Point(-18.5, -15.5), 16.0, 14.2);
+            dc.DrawEllipse(EyeGlow, null, new Point(18.5, -15.5), 16.0, 14.2);
+            dc.Pop();
+            dc.PushOpacity(.68);
+            dc.DrawGeometry(Marking, null, Forehead);
+            dc.Pop();
+            dc.PushOpacity(.52);
+            dc.DrawGeometry(SoftMarking, null, Cheeks);
+            dc.Pop();
+
+            dc.PushTransform(new TranslateTransform(gx * 2.4, 0));
+            dc.PushOpacity(.45);
+            dc.DrawGeometry(MaskFeather, null, WhiteFaceRim);
+            dc.Pop();
+            dc.DrawGeometry(WhiteFace, null, WhiteLowerFace);
+            dc.PushOpacity(.42);
+            dc.DrawEllipse(JawShadow, null, new Point(0, 32), 30, 6.5);
+            dc.Pop();
+            dc.DrawGeometry(null, Lip, Smile);
+            dc.DrawGeometry(NoseColor, null, Nose);
+            dc.PushOpacity(.55);
+            dc.DrawEllipse(NoseHighlight, null, new Point(-1.4, 4.6), 1.5, .8);
+            dc.Pop();
             dc.Pop();
             dc.Pop();
         }

@@ -7,10 +7,11 @@ public static partial class CatArt
     // Ginger coat markings sit on top of the same opaque rig used by the black cat.
     private static class Ginger
     {
-        internal static readonly Brush BodyFur = Coat(0xf1aa63,0xda884a);
+        internal static readonly Brush BodyFur = WashAbsolute(new byte[] { 0xf1, 0xaa, 0x63 }, new byte[] { 0xda, 0x88, 0x4a }, new Point(175, 102), new Point(255, 239));
         internal static readonly Brush HeadFur = Coat(0xffc179,0xe89a55);
         internal static readonly Brush TailFur = Coat(0xeaa15c,0xd58b4f);
-        internal static readonly Brush LegFur = Coat(0xefaa67,0xdf9354);
+        internal static readonly Brush LegFur = BodyFur;
+        internal static readonly Brush LidFur = Ink(246, 176, 105);
         internal static readonly Brush InnerEar = Coat(0xe88c84,0xf7b398);
         internal static readonly Brush Iris = Wash(new byte[]{135,143,101},new byte[]{204,179,113},new Point(.45,0),new Point(.55,1));
         internal static readonly Pen Lid = Stroke(Ink(92,62,40),2.0);
@@ -109,12 +110,14 @@ public static partial class CatArt
             dc.DrawEllipse(Cream,null,paw,radius+.35,radius*(.94-.06*activity));
         }
 
-        internal static void DrawPupil(DrawingContext dc,double x,double y,double gx,double gy)
+        internal static void DrawPupil(DrawingContext dc, double x, double y, double gx, double gy, double crouch)
         {
-            Point pupil=new Point(x+gx*5.2,y+gy*4.2);
-            dc.DrawEllipse(DarkEye,null,pupil,7.7,10.15);
-            dc.DrawEllipse(Catchlight,null,new Point(pupil.X-2.15,pupil.Y-3.55),2.45,2.5);
-            dc.DrawEllipse(Catchlight,null,new Point(pupil.X+3.25,pupil.Y+4.6),.85,.83);
+            double boost = 1.0 + 0.16 * crouch;
+            Point pupil = new Point(x + gx * 7.4, y + gy * 6.2);
+            double rx = (4.4 + Math.Abs(gy) * 0.75) * boost;
+            double ry = 8.2 * boost;
+            dc.DrawEllipse(DarkEye, null, pupil, rx, ry);
+            dc.DrawEllipse(Catchlight, null, new Point(pupil.X - 1.5, pupil.Y - 2.9), 1.55, 1.65);
         }
 
         internal static void DrawFaceMarkings(DrawingContext dc,Geometry head,double gx)

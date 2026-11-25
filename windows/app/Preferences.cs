@@ -7,7 +7,8 @@ internal sealed class Preferences
 {
     public const int MinPercent = 1, MaxPercent = 200;
     public double X = double.NaN, Y = double.NaN, Scale = 1.0;
-    public bool Labels = true, ClickThrough = false, OnTop = true;
+    public bool Labels = true, ClickThrough = false, OnTop = true, PasswordMode = true;
+    public int IdleMinutes = 5;
     public CatStyle Cat = CatStyle.Black;
     public KeyboardStyle Keyboard = KeyboardStyle.Classic;
     public MouseStyle Mouse = MouseStyle.Classic;
@@ -35,6 +36,9 @@ internal sealed class Preferences
                 p.Labels = (bool?)root.Attribute("labels") ?? true;
                 p.ClickThrough = (bool?)root.Attribute("clickThrough") ?? false;
                 p.OnTop = (bool?)root.Attribute("onTop") ?? true;
+                p.PasswordMode = (bool?)root.Attribute("passwordMode") ?? true;
+                int idle = (int?)root.Attribute("idleMinutes") ?? 5;
+                p.IdleMinutes = Math.Max(0, Math.Min(60, idle));
                 p.Cat = ReadStyle(root, "catStyle", p.Cat);
                 p.Keyboard = ReadStyle(root, "keyboard", p.Keyboard);
                 p.Mouse = ReadStyle(root, "mouse", p.Mouse);
@@ -60,6 +64,7 @@ internal sealed class Preferences
             var settings = new XElement("cat", new XAttribute("x", X), new XAttribute("y", Y),
                 new XAttribute("scale", Scale), new XAttribute("labels", Labels),
                 new XAttribute("clickThrough", ClickThrough), new XAttribute("onTop", OnTop),
+                new XAttribute("passwordMode", PasswordMode), new XAttribute("idleMinutes", IdleMinutes),
                 new XAttribute("catStyle", Cat),
                 new XAttribute("keyboard", Keyboard), new XAttribute("mouse", Mouse),
                 new XAttribute("gamepad", Gamepad), new XAttribute("gamepadMode", Mode));

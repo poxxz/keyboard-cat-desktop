@@ -11,10 +11,11 @@ public static partial class CatArt
     // rig used by the black cat.
     private static class Siamese
     {
-        internal static readonly Brush BodyFur = Coat(0xd0b99f, 0xac8e76);
+        internal static readonly Brush BodyFur = WashAbsolute(new byte[] { 0xd0, 0xb9, 0x9f }, new byte[] { 0xac, 0x8e, 0x76 }, new Point(175, 102), new Point(255, 239));
         internal static readonly Brush HeadFur = Coat(0xeee3d2, 0xddcdb8);
         internal static readonly Brush TailFur = Coat(0x583f3a, 0x3e2d2a);
         internal static readonly Brush ForelegFur = Wash(new byte[]{218,199,176}, new byte[]{198,173,149}, new Point(.2,0), new Point(.9,1));
+        internal static readonly Brush LidFur = Ink(90, 63, 58);
         internal static readonly Brush InnerEar = Coat(0x86605a, 0x76524c);
         internal static readonly Brush Iris = Wash(new byte[]{196,222,240}, new byte[]{122,164,204}, new Point(.2,0), new Point(.83,1));
         internal static readonly Pen Lid = Stroke(Ink(104,142,180), 2.0);
@@ -23,7 +24,7 @@ public static partial class CatArt
         internal static readonly Pen WhiskerRoot = Stroke(Ink(190,176,166), .85);
         private static readonly Brush PawFur = Coat(0x5c443d, 0x44322e);
         private static readonly Brush NoseColor = Coat(0x3a2626, 0x2a1b1b);
-        private static readonly Pen LegEdge = Stroke(Translucent(190,164,142,140), .45);
+        private static readonly Pen LegEdge = Stroke(Translucent(190,164,142,135), .48);
         private static readonly Brush EarDark = EarWash();
         private static readonly Brush Chest = ChestWash();
         private static readonly Brush Mask = MaskWash(245, 210);
@@ -89,10 +90,14 @@ public static partial class CatArt
             dc.Pop();
         }
 
-        // Light foreleg with a faint edge, then a dark seal paw on top.
-        internal static void DrawArm(DrawingContext dc, Geometry arm, Point paw, double radius, double activity)
+        // Light foreleg with shoulder-blended coat and edge fading in below the chest, then dark seal paw.
+        internal static void DrawArm(DrawingContext dc, Geometry arm, Point shoulder, Point paw, double radius, double activity)
         {
-            dc.DrawGeometry(ForelegFur, LegEdge, arm);
+            Brush fill = ArmGradient(Color.FromRgb(216, 197, 174), Color.FromRgb(218, 199, 176), 0.32, Color.FromRgb(198, 173, 149), shoulder, paw);
+            dc.DrawGeometry(fill, null, arm);
+            dc.PushOpacityMask(EdgeFadeMask(shoulder, paw));
+            dc.DrawGeometry(null, LegEdge, arm);
+            dc.Pop();
             dc.DrawEllipse(PawFur, null, paw, radius+.35, radius*(.94-.06*activity));
         }
 

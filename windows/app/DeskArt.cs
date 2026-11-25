@@ -1,4 +1,4 @@
-﻿using System;
+using System;
 using System.Collections.Generic;
 using System.Globalization;
 using System.Windows;
@@ -355,6 +355,151 @@ public static class DeskArt
         dc.DrawRoundedRectangle(CapFill, CapOutline, new Rect(-width / 2, -height / 2, width, height - .5), 4, 4);
         dc.DrawText(glyph, new Point(-glyph.Width / 2, -glyph.Height / 2 - .8));
         dc.Pop();
+        dc.Pop();
+        dc.Pop();
+    }
+
+    private static readonly Typeface PrivacyFace = new Typeface(
+        new FontFamily("Microsoft YaHei UI, Segoe UI"), FontStyles.Normal, FontWeights.Bold, FontStretches.Normal);
+    private static readonly FormattedText PrivacyLabel = BuildPrivacyLabel();
+    private static readonly Geometry CoverBase = Panel(-.62, -.35, 15.62, 5.38, .42, .50, .5, false);
+    private static readonly Geometry CoverTop = Panel(-.48, -.22, 15.48, 5.20, .45, .52, 13.5, false);
+    private static readonly Geometry CoverLeftWall = Quad(
+        Project(15.62, -.35, .5), Project(15.62, 5.38, .5),
+        Project(15.48, 5.20, 13.5), Project(15.48, -.22, 13.5));
+    private static readonly Geometry CoverRightWall = Quad(
+        Project(-.62, -.35, .5), Project(-.62, 5.38, .5),
+        Project(-.48, 5.20, 13.5), Project(-.48, -.22, 13.5));
+    private static readonly Geometry CoverFrontWall = Quad(
+        Project(15.62, 5.38, .5), Project(-.62, 5.38, .5),
+        Project(-.48, 5.20, 13.5), Project(15.48, 5.20, 13.5));
+    private static readonly Geometry CoverSheen1 = Quad(
+        Project(12.8, -.4, 13.5), Project(10.8, -.4, 13.5),
+        Project(13.2, 5.4, 13.5), Project(15.2, 5.4, 13.5));
+    private static readonly Geometry CoverSheen2 = Quad(
+        Project(9.6, -.4, 13.5), Project(8.7, -.4, 13.5),
+        Project(11.1, 5.4, 13.5), Project(12.0, 5.4, 13.5));
+    private static readonly Brush CoverBaseFill = AlphaPaint(52, 180, 205, 235);
+    private static readonly Pen CoverBaseEdge = AlphaLine(115, 110, 145, 185, .9);
+    private static readonly Brush CoverSideFill = AlphaGradient(
+        Color.FromArgb(128, 188, 212, 238), Color.FromArgb(158, 130, 162, 198), new Point(0, 0), new Point(1, 1));
+    private static readonly Brush CoverFrontFill = AlphaGradient(
+        Color.FromArgb(153, 212, 230, 248), Color.FromArgb(178, 155, 185, 220), new Point(0, 0), new Point(0, 1));
+    private static readonly Brush CoverTopFill = BuildCoverTopBrush();
+    private static readonly Pen CoverWallEdge = AlphaLine(125, 255, 255, 255, .75);
+    private static readonly Pen CoverTopEdge = AlphaLine(230, 255, 255, 255, 1.25);
+    private static readonly Pen CoverInnerEdge = AlphaLine(108, 95, 130, 170, .6);
+    private static readonly Brush CoverSheenBrush1 = AlphaPaint(72, 255, 255, 255);
+    private static readonly Brush CoverSheenBrush2 = AlphaPaint(46, 255, 255, 255);
+    private static readonly Brush PillShadow = AlphaPaint(56, 45, 65, 92);
+    private static readonly Brush PillFill = AlphaPaint(235, 255, 255, 255);
+    private static readonly Pen PillEdge = AlphaLine(255, 91, 126, 166, 1.0);
+    private static readonly Pen LockShacklePen = AlphaLine(255, 62, 99, 141, 1.6);
+    private static readonly Brush LockBodyFill = Paint(0x4B79B0);
+    private static readonly Brush WhiteBrush = Paint(0xFFFFFF);
+    private static readonly Pen KeyholePen = AlphaLine(255, 255, 255, 255, 1.1);
+    private static readonly Point PrivacyCenter = Project(7.5, 2.55, 13.5);
+    private static readonly Geometry LockShackle = BuildLockShackle();
+
+    private static FormattedText BuildPrivacyLabel()
+    {
+        return new FormattedText("请勿偷窥", CultureInfo.CurrentUICulture, FlowDirection.LeftToRight,
+            PrivacyFace, 11.8, Paint(0x26415E), 1.0);
+    }
+
+    private static Geometry Quad(Point a, Point b, Point c, Point d)
+    {
+        StreamGeometry path = new StreamGeometry();
+        using (StreamGeometryContext g = path.Open())
+        {
+            g.BeginFigure(a, true, true);
+            g.LineTo(b, true, false);
+            g.LineTo(c, true, false);
+            g.LineTo(d, true, false);
+        }
+        path.Freeze();
+        return path;
+    }
+
+    private static Geometry BuildLockShackle()
+    {
+        double lx = PrivacyCenter.X - 28.0, ly = PrivacyCenter.Y + 0.3;
+        StreamGeometry path = new StreamGeometry();
+        using (StreamGeometryContext g = path.Open())
+        {
+            g.BeginFigure(new Point(lx - 3.2, ly - 1.5), false, false);
+            g.LineTo(new Point(lx - 3.2, ly - 4.2), true, false);
+            g.BezierTo(new Point(lx - 3.2, ly - 6.8), new Point(lx + 3.2, ly - 6.8), new Point(lx + 3.2, ly - 4.2), true, false);
+            g.LineTo(new Point(lx + 3.2, ly - 1.5), true, false);
+        }
+        path.Freeze();
+        return path;
+    }
+
+    private static Brush AlphaPaint(byte a, byte r, byte g, byte b)
+    {
+        SolidColorBrush brush = new SolidColorBrush(Color.FromArgb(a, r, g, b));
+        brush.Freeze();
+        return brush;
+    }
+
+    private static Pen AlphaLine(byte a, byte r, byte g, byte b, double thickness)
+    {
+        Pen pen = new Pen(AlphaPaint(a, r, g, b), thickness);
+        pen.StartLineCap = PenLineCap.Round;
+        pen.EndLineCap = PenLineCap.Round;
+        pen.LineJoin = PenLineJoin.Round;
+        pen.Freeze();
+        return pen;
+    }
+
+    private static Brush AlphaGradient(Color from, Color to, Point start, Point end)
+    {
+        LinearGradientBrush brush = new LinearGradientBrush(from, to, start, end);
+        brush.Freeze();
+        return brush;
+    }
+
+    private static Brush BuildCoverTopBrush()
+    {
+        LinearGradientBrush brush = new LinearGradientBrush();
+        brush.StartPoint = new Point(.15, 0);
+        brush.EndPoint = new Point(.85, 1);
+        brush.GradientStops.Add(new GradientStop(Color.FromArgb(189, 244, 250, 255), 0));
+        brush.GradientStops.Add(new GradientStop(Color.FromArgb(163, 216, 233, 250), .55));
+        brush.GradientStops.Add(new GradientStop(Color.FromArgb(179, 196, 219, 244), 1));
+        brush.Freeze();
+        return brush;
+    }
+
+    public static void DrawPasswordCover(DrawingContext dc, double opacity)
+    {
+        if (opacity <= .005) return;
+        dc.PushOpacity(Math.Min(1, Math.Max(0, opacity)));
+        dc.PushTransform(new TranslateTransform(0, DeskLayout.Forward));
+        dc.DrawGeometry(CoverBaseFill, CoverBaseEdge, CoverBase);
+        dc.DrawGeometry(CoverSideFill, CoverWallEdge, CoverLeftWall);
+        dc.DrawGeometry(CoverSideFill, CoverWallEdge, CoverRightWall);
+        dc.DrawGeometry(CoverFrontFill, CoverWallEdge, CoverFrontWall);
+        dc.DrawGeometry(CoverTopFill, CoverTopEdge, CoverTop);
+        dc.PushClip(CoverTop);
+        dc.DrawGeometry(CoverSheenBrush1, null, CoverSheen1);
+        dc.DrawGeometry(CoverSheenBrush2, null, CoverSheen2);
+        dc.DrawGeometry(null, CoverInnerEdge, CoverTop);
+        dc.Pop();
+
+        const double pillW = 84.0, pillH = 21.5;
+        double cx = PrivacyCenter.X, cy = PrivacyCenter.Y;
+        dc.DrawRoundedRectangle(PillShadow, null, new Rect(cx - pillW / 2, cy - pillH / 2 + 1.0, pillW, pillH), 10.5, 10.5);
+        dc.DrawRoundedRectangle(PillFill, PillEdge, new Rect(cx - pillW / 2, cy - pillH / 2, pillW, pillH), 10.5, 10.5);
+
+        double lx = cx - 28.0, ly = cy + 0.3;
+        dc.DrawGeometry(null, LockShacklePen, LockShackle);
+        dc.DrawRoundedRectangle(LockBodyFill, null, new Rect(lx - 4.8, ly - 1.5, 9.6, 7.6), 1.8, 1.8);
+        dc.DrawEllipse(WhiteBrush, null, new Point(lx, ly + 1.6), 1.2, 1.2);
+        dc.DrawLine(KeyholePen, new Point(lx, ly + 2.2), new Point(lx, ly + 4.2));
+
+        dc.DrawText(PrivacyLabel, new Point(cx + 8.5 - PrivacyLabel.Width / 2, cy - PrivacyLabel.Height / 2));
         dc.Pop();
         dc.Pop();
     }

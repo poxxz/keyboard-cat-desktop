@@ -16,6 +16,7 @@ public static partial class CatArt
         internal static readonly Brush HeadFur = Coat(0xeceef0, 0xd8dce0);
         internal static readonly Brush TailFur = Coat(0xdde0e3, 0xc4c9ce);
         internal static readonly Brush ForelegFur = Coat(0xf4f5f6, 0xe8eaec);
+        internal static readonly Brush LidFur = Ink(228, 231, 234);
         internal static readonly Brush InnerEar = Coat(0xe8b8b2, 0xdaa49e);
         internal static readonly Brush Iris = Wash(new byte[]{126,200,122}, new byte[]{62,158,88}, new Point(.45,0), new Point(.55,1));
         internal static readonly Pen Lid = Stroke(Ink(58,108,68), 2.0);
@@ -25,7 +26,12 @@ public static partial class CatArt
         private static readonly Brush Marking = Ink(150,155,160);
         private static readonly Brush SoftMarking = Ink(172,177,182);
         private static readonly Brush Cream = Ink(250,251,252);
-        private static readonly Brush BibFur = Coat(0xf8f9fa, 0xedeff0);
+        private static readonly Brush BibFur = WashAbsolute(new byte[] { 0xf5, 0xf6, 0xf8 }, new byte[] { 0xe6, 0xea, 0xed }, new Point(175, 102), new Point(255, 239));
+
+        internal static Brush ArmBrush(Point shoulder, Point paw)
+        {
+            return ArmGradient(Color.FromRgb(236, 239, 241), Color.FromRgb(242, 244, 246), 0.28, Color.FromRgb(246, 247, 248), shoulder, paw);
+        }
         private static readonly Brush NoseColor = Coat(0xe29a92, 0xcc7d74);
         private static readonly Brush DarkEye = Ink(38,42,40);
         private static readonly Brush Catchlight = Ink(255,255,255);
@@ -104,12 +110,14 @@ public static partial class CatArt
             dc.DrawEllipse(Cream, null, paw, radius+.35, radius*(.94-.06*activity));
         }
 
-        internal static void DrawPupil(DrawingContext dc, double x, double y, double gx, double gy)
+        internal static void DrawPupil(DrawingContext dc, double x, double y, double gx, double gy, double crouch)
         {
-            Point pupil = new Point(x+gx*5.2, y+gy*4.2);
-            dc.DrawEllipse(DarkEye, null, pupil, 8.2, 9.8);
-            dc.DrawEllipse(Catchlight, null, new Point(pupil.X-2.15, pupil.Y-3.55), 2.45, 2.5);
-            dc.DrawEllipse(Catchlight, null, new Point(pupil.X+3.25, pupil.Y+4.6), .85, .83);
+            double boost = 1.0 + 0.16 * crouch;
+            Point pupil = new Point(x + gx * 7.4, y + gy * 6.2);
+            double rx = (4.4 + Math.Abs(gy) * 0.75) * boost;
+            double ry = 8.2 * boost;
+            dc.DrawEllipse(DarkEye, null, pupil, rx, ry);
+            dc.DrawEllipse(Catchlight, null, new Point(pupil.X - 1.5, pupil.Y - 2.9), 1.55, 1.65);
         }
 
         internal static void DrawFaceMarkings(DrawingContext dc, Geometry head, double gx)

@@ -1,4 +1,4 @@
-﻿using System;
+using System;
 using System.Windows;
 using System.Windows.Media;
 
@@ -213,7 +213,7 @@ internal static class TabbyArt
         Wash(d,"#70685E","#585651","M 38,-51 L 50,-52 Q 45,-32 55,-23 Q 61,-18 67,-16 L 62,-6 Q 48,-11 41,-20 Q 34,-32 38,-51 Z");
         Wash(d,"#514E48","#454744","M 52,-69 L 89,-68 L 92,-24 L 76,-19 Q 64,-23 57,-34 Q 52,-42 53,-51 Q 55,-59 52,-69 Z");
     }
-    private static void DrawEye(DrawingContext dc, int side, double gazeX, double gazeY, double blink)
+    private static void DrawEye(DrawingContext dc, int side, double gazeX, double gazeY, double blink, double crouch = 0)
     {
         dc.PushTransform(new TranslateTransform(side*18.65,-8.45));
         dc.PushTransform(new ScaleTransform(side*10.9/12,9.1/9));
@@ -226,9 +226,12 @@ internal static class TabbyArt
             dc.PushTransform(new ScaleTransform(1,1-blink));
             dc.DrawGeometry(Iris,EyeEdge,Eye);
             dc.PushClip(Eye);
-            double x=-.6+side*gazeX*4.5, y=.3+gazeY*3.5;
-            dc.DrawEllipse(Pupil,null,new Point(x,y),5.7,8);
-            dc.DrawEllipse(Glint,null,new Point(x-side*1.7,y-3.1),1.9,1.85);
+            double boost = 1.0 + 0.16 * crouch;
+            double x = -.3 + side * gazeX * 6.4, y = .2 + gazeY * 4.6;
+            double rx = (3.7 + Math.Abs(gazeY) * 0.65) * boost;
+            double ry = 6.2 * boost;
+            dc.DrawEllipse(Pupil, null, new Point(x, y), rx, ry);
+            dc.DrawEllipse(Glint, null, new Point(x - side * 1.35, y - 2.3), 1.35, 1.4);
             dc.Pop();
             dc.Pop();
         }
@@ -236,14 +239,22 @@ internal static class TabbyArt
         dc.Pop();
     }
 
-    private static void DrawHead(DrawingContext dc, double gazeX, double gazeY, double blink)
+    private static readonly Brush LidFur = Ink("#A2896B");
+
+    private static void DrawHead(DrawingContext dc, double gazeX, double gazeY, double blink,
+                                 double anger = 0, double angerBreath = 0.5, double crouch = 0)
     {
         dc.DrawDrawing(HeadCoat);
         dc.DrawGeometry(null,EarFeather,EarTuft);
         gazeX = Math.Min(1,.37+.79*gazeX);
         gazeY -= .035;
-        DrawEye(dc,-1,gazeX,gazeY,blink);
-        DrawEye(dc,1,gazeX,gazeY,blink);
+        DrawEye(dc,-1,gazeX,gazeY,blink,crouch);
+        DrawEye(dc,1,gazeX,gazeY,blink,crouch);
+        if (anger > .01 && blink <= .92)
+        {
+            CatArt.DrawAngryEyelid(dc, -18.65, -8.45, 11.2, 9.2, -1, LidFur, Lid, anger, angerBreath);
+            CatArt.DrawAngryEyelid(dc, 18.65, -8.45, 11.2, 9.2, 1, LidFur, Lid, anger, angerBreath);
+        }
         dc.PushTransform(new TranslateTransform(gazeX*1.55,gazeY*.5));
         dc.DrawDrawing(Muzzle);
         dc.Pop();
@@ -269,15 +280,21 @@ internal static class TabbyArt
         private readonly Point shoulder, near, far, paw;
         private readonly int side;
 
-        public Foreleg(Point shoulder, Point paw, int side)
+        public Foreleg(Point shoulder, Point paw, int side, double pawRaised)
         {
             this.shoulder = shoulder;
             this.paw = paw;
             this.side = side;
-            double bend = Math.Max(0,Math.Min(1,(228-paw.Y)/44));
+            double bend = pawRaised >= 0 ? pawRaised : Math.Max(0,Math.Min(1,(228-paw.Y)/44));
+            double high = Math.Max(0, Math.Min(1, (185.0 - paw.Y) / 55.0));
+            high = high * high * (3 - 2 * high);
             Vector span = paw-shoulder;
-            near = new Point(shoulder.X+span.X*.18+side*(3+7*bend),shoulder.Y+10+bend*9);
-            far = new Point(paw.X-span.X*.20+side*(2+12*bend),paw.Y-16+31*bend);
+            Point nearLow = new Point(shoulder.X+span.X*.18+side*(3+7*bend),shoulder.Y+10+bend*9);
+            Point farLow = new Point(paw.X-span.X*.20+side*(2+12*bend),paw.Y-16+31*bend);
+            Point nearHigh = new Point(shoulder.X+span.X*.32+side*6,shoulder.Y+span.Y*.28+12);
+            Point farHigh = new Point(shoulder.X+span.X*.72+side*4,shoulder.Y+span.Y*.72+8);
+            near = new Point(nearLow.X + (nearHigh.X - nearLow.X) * high, nearLow.Y + (nearHigh.Y - nearLow.Y) * high);
+            far = new Point(farLow.X + (farHigh.X - farLow.X) * high, farLow.Y + (farHigh.Y - farLow.Y) * high);
         }
 
         private Point Center(double u)
@@ -298,7 +315,7 @@ internal static class TabbyArt
 
         public StreamGeometry Outline()
         {
-            const int steps=20;
+            const int steps=24;
             Point[] opposite=new Point[steps+1];
             var arm=new StreamGeometry { FillRule=FillRule.Nonzero };
             using (StreamGeometryContext path=arm.Open())
@@ -306,7 +323,10 @@ internal static class TabbyArt
                 for (int i=0;i<=steps;i++)
                 {
                     double u=i/(double)steps;
-                    double radius=(12*BodyWidth*(1-u)+8.1*u)*(.15+.85*Math.Min(1,u/.16));
+                    double baseR=12*BodyWidth*(1-u)+8.1*u;
+                    double k=Math.Min(1,u/.14);
+                    double dome=.22+.78*Math.Sqrt(Math.Max(0,1-(1-k)*(1-k)));
+                    double radius=baseR*dome;
                     Point center=Center(u);
                     Vector normal=Normal(u,.01)*radius;
                     if (i==0) path.BeginFigure(center+normal,true,true);
@@ -337,11 +357,13 @@ internal static class TabbyArt
         }
     }
 
-    private static void DrawArm(DrawingContext dc,Point shoulder,Point paw,int side,double activity)
+    private static void DrawArm(DrawingContext dc,Point shoulder,Point paw,int side,double activity,double pawRaised)
     {
-        var leg=new Foreleg(shoulder,paw,side);
+        var leg=new Foreleg(shoulder,paw,side,pawRaised);
         Geometry arm=leg.Outline();
-        dc.DrawGeometry(Sleeve,null,arm);
+        Brush blendedSleeve = CatArt.ArmGradient(
+            Color.FromRgb(156, 134, 108), Color.FromRgb(162, 139, 111), 0.35, Color.FromRgb(176, 152, 120), shoulder, paw);
+        dc.DrawGeometry(blendedSleeve,null,arm);
         dc.PushClip(arm);
         leg.DrawStripe(dc,.26,.100,UpperStripe);
         leg.DrawStripe(dc,side>0?.44:.47,.117,MiddleStripe);
@@ -358,15 +380,17 @@ internal static class TabbyArt
     private static double Lean(Point leftPaw)
     {
         double s=Math.Max(0,Math.Min(1,(157-leftPaw.X)/50));
-        return s*s*(3-2*s);
+        double h=Math.Max(0,Math.Min(1,(195-leftPaw.Y)/45));
+        double high=h*h*(3-2*h);
+        return s*s*(3-2*s)*(1-high);
     }
 
     private static Matrix HeadPose(double t, double gazeX, double gazeY, double lean)
     {
         Matrix pose=Matrix.Identity;
         pose.Scale(1.055,1);
-        pose.Rotate(-2.25+2.8*gazeX-3*lean);
-        pose.Translate(214-40*lean+2.5*gazeX,BodyTop-2+2*gazeY+Math.Sin(t*1.7)*.6);
+        pose.Rotate(-2.25+2.8*gazeX-2.4*lean);
+        pose.Translate(214-33.5*lean+2.5*gazeX,BodyTop-2+2*gazeY+Math.Sin(t*1.7)*.6);
         return pose;
     }
 
@@ -377,27 +401,36 @@ internal static class TabbyArt
         return Head.FillContains(pose.Transform(pointer));
     }
 
-    private static void PushBodyPose(DrawingContext dc,double lean)
+    private static void PushBodyPose(DrawingContext dc,double lean,double sxScale,double syScale,double bodyYShift)
     {
         dc.PushTransform(new MatrixTransform(1,0,.285*lean,1,-233*.285*lean,0));
-        dc.PushTransform(new TranslateTransform(214,BodyTop));
-        dc.PushTransform(new ScaleTransform(BodyWidth,BodyHeight));
+        dc.PushTransform(new TranslateTransform(214,BodyTop + bodyYShift));
+        dc.PushTransform(new ScaleTransform(BodyWidth * sxScale, BodyHeight * syScale));
     }
 
     public static void Draw(DrawingContext dc,double time,double gazeX,double gazeY,double blink,
                             Point leftPaw,Point rightPaw,double leftActivity,double rightActivity,
-                            Action<DrawingContext> between = null)
+                            Action<DrawingContext> between = null, double pawRaised = -1, CatMood mood = default(CatMood))
     {
-        double lean=Lean(leftPaw);
-        dc.PushTransform(new TranslateTransform(187,184));
-        dc.PushTransform(new RotateTransform(186+Math.Sin(time*1.8)*2.1));
+        double sleep = Math.Max(0, Math.Min(1, mood.Sleep));
+        double crouch = Math.Max(0, Math.Min(1, mood.Crouch));
+        double lean=Lean(leftPaw) * (1 - sleep);
+        double syScale = 1.0 - 0.45 * sleep - 0.10 * crouch;
+        double sxScale = 1.0 + 0.04 * sleep + 0.04 * crouch;
+        double bodyYShift = (1.0 - syScale) * (235.0 - BodyTop);
+        double angerBreath = 0.5 + 0.5 * Math.Sin(time * 6.8);
+
+        double tailSpeed = 1.8 + mood.Anger * 2.8 + crouch * 2.2 - sleep * 1.1;
+        double tailAmp = 2.1 + mood.Anger * 2.0 + crouch * 2.5;
+        dc.PushTransform(new TranslateTransform(187,184 + 14 * sleep));
+        dc.PushTransform(new RotateTransform(186+Math.Sin(time*tailSpeed)*tailAmp));
         dc.PushTransform(new ScaleTransform(1.1,1.22));
         dc.DrawDrawing(TailCoat);
         dc.Pop();
         dc.Pop();
         dc.Pop();
 
-        PushBodyPose(dc,lean);
+        PushBodyPose(dc,lean,sxScale,syScale,bodyYShift);
         dc.DrawDrawing(BodyCoat);
         dc.Pop();
         dc.Pop();
@@ -406,20 +439,32 @@ internal static class TabbyArt
         // gamepad) goes between the torso and the forelegs, or the opaque
         // body hides it.
         if (between != null) between(dc);
-        DrawArm(dc,new Point(214+25*BodyWidth-29*lean,BodyTop+23),rightPaw,1,rightActivity);
-        DrawArm(dc,new Point(214-25*BodyWidth-29*lean,BodyTop+23),leftPaw,-1,leftActivity);
+        double rSy = BodyTop + bodyYShift + 17.0 * syScale;
+        double lSy = BodyTop + bodyYShift + (17.0 - 5.0 * lean) * syScale;
+        double rShear = (rSy - 233.0) * 0.285 * lean;
+        double lShear = (lSy - 233.0) * 0.285 * lean;
+        DrawArm(dc,new Point(214+22*BodyWidth*sxScale+rShear, rSy),rightPaw,1,rightActivity,pawRaised);
+        DrawArm(dc,new Point(214-(22*BodyWidth*sxScale+2.5*lean)+lShear, lSy),leftPaw,-1,leftActivity,pawRaised);
 
-        // This front ruff overlaps the upper arm stripes, as it does in the approved pose.
-        PushBodyPose(dc,lean);
+        // This front ruff overlaps the upper arm stripes, and tucks slightly inward during sleep.
+        PushBodyPose(dc,lean,sxScale * (1.0 - 0.22 * sleep),syScale,bodyYShift);
         dc.DrawGeometry(RuffFur,null,Ruff);
         dc.Pop();
         dc.Pop();
         dc.Pop();
-        // WPF rounds individual transforms at render time. Keep the approved head transform order.
-        dc.PushTransform(new TranslateTransform(214-40*lean+2.5*gazeX,BodyTop-2+2*gazeY+Math.Sin(time*1.7)*.6));
-        dc.PushTransform(new RotateTransform(-2.25+2.8*gazeX-3*lean));
+
+        double breathFreq = sleep > 0.5 ? 1.15 : 1.7;
+        double breathAmp = sleep > 0.5 ? 1.6 : 0.6;
+        double hx = 214 - 33.5*lean + 2.5*gazeX*(1 - sleep) - 2.0*sleep;
+        double hyNorm = BodyTop - 2 + 2*gazeY + Math.Sin(time*breathFreq)*breathAmp + 12.0*crouch;
+        double hy = hyNorm + (186 + Math.Sin(time*1.15)*1.8 - hyNorm)*sleep;
+        double rot = (-2.25 + 2.8*gazeX - 2.4*lean)*(1 - sleep) - 8.5*sleep;
+        dc.PushTransform(new TranslateTransform(hx, hy));
+        dc.PushTransform(new RotateTransform(rot));
         dc.PushTransform(new ScaleTransform(1.055,1));
-        DrawHead(dc,gazeX,gazeY,blink);
+        DrawHead(dc,gazeX,gazeY,blink,mood.Anger,angerBreath,mood.Crouch);
+        if (mood.Sweat > .01) CatArt.DrawSweat(dc, time, mood.Sweat);
+        if (mood.Anger > .01) CatArt.DrawAnger(dc, time, mood.Anger);
         dc.Pop();
         dc.Pop();
         dc.Pop();

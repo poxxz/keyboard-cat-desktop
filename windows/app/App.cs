@@ -15,7 +15,7 @@ using Forms = System.Windows.Forms;
 
 [assembly: AssemblyTitle("键盘小黑猫")]
 [assembly: AssemblyDescription("会跟着键盘和鼠标一起动的小黑猫桌宠")]
-[assembly: AssemblyVersion("1.7.1.0")]
+[assembly: AssemblyVersion("1.7.2.0")]
 internal static class Program
 {
     [STAThread]
@@ -48,9 +48,9 @@ internal sealed class PetWindow : Window
     // timestamps line up with the keyboard / mouse ones.
     internal static double Now { get { return clock.Elapsed.TotalSeconds; } }
     private readonly Forms.ContextMenuStrip menu = new Forms.ContextMenuStrip();
-    private readonly StyleMenu styleMenu = new StyleMenu();
     private readonly Forms.NotifyIcon tray = new Forms.NotifyIcon();
     private readonly Drawing.Icon icon;
+    private SettingsWindow settingsWindow;
     private IntPtr hwnd, inputBuffer;
     private Drawing.Rectangle cursorMonitor;
     private bool listening, menuOpen;
@@ -74,6 +74,8 @@ internal sealed class PetWindow : Window
         stage.ClipToBounds = true;
         stage.Children.Add(cat);
         cat.LabelsEnabled = settings.Labels;
+        cat.PasswordModeEnabled = settings.PasswordMode;
+        cat.IdleMinutes = settings.IdleMinutes;
         cat.Cat = settings.Cat;
         cat.Keyboard = settings.Keyboard;
         cat.Mouse = settings.Mouse;
@@ -85,14 +87,21 @@ internal sealed class PetWindow : Window
             settings.Gamepad = cat.Gamepad = GamepadStyle.PS5;
             cat.InvalidateVisual();
             Save();
+            if (settingsWindow != null && settingsWindow.IsVisible) settingsWindow.SyncFromState();
         };
         DualSenseInput.Start(cat);
+        PasswordMonitor.Start();
+        UpdateManager.CleanupLeftovers();
         ApplySize();
         icon = Drawing.Icon.ExtractAssociatedIcon(Assembly.GetExecutingAssembly().Location);
         tray.Icon = icon;
-        tray.Text = "键盘小黑猫 · 右键设置";
+        tray.Text = "键盘小黑猫 · 点击打开设置";
         tray.ContextMenuStrip = menu;
-        tray.DoubleClick += delegate { Reveal(); };
+        tray.MouseClick += delegate(object sender, Forms.MouseEventArgs e)
+        {
+            if (e.Button == Forms.MouseButtons.Left) OpenSettings();
+        };
+        tray.DoubleClick += delegate { Reveal(); OpenSettings(); };
         menu.Font = new Drawing.Font("Microsoft YaHei UI", 9f);
         menu.Opening += BuildMenu;
         menu.Closed += delegate { menuOpen = false; };
@@ -102,7 +111,7 @@ internal sealed class PetWindow : Window
         LostMouseCapture += delegate { if (dragStart.HasValue) EndDrag(); };
         MouseRightButtonUp += delegate(object sender, MouseButtonEventArgs e)
         {
-            menu.Show(Forms.Cursor.Position); e.Handled = true;
+            OpenSettings(); e.Handled = true;
         };
         Cursor = Cursors.Hand;
         timer.Interval = TimeSpan.FromMilliseconds(1000.0 / 40);
@@ -177,6 +186,7 @@ internal sealed class PetWindow : Window
             bool rightDown = WindowsInput.GetAsyncKeyState(2) < 0;
             cat.Pointer(new Point(p.X / settings.Scale, p.Y / settings.Scale), leftDown, rightDown, now, onMonitor);
         }
+        cat.SetPasswordFocused(PasswordMonitor.IsPasswordFocused);
         cat.Advance(now);
     }
 
@@ -240,99 +250,116 @@ internal sealed class PetWindow : Window
         item.Click += delegate { action(); };
         return item;
     }
-    private Forms.ToolStripMenuItem SizeMenu()
+    private void OpenSettings()
     {
-        var anchor = new Point(Left + Width, Top + Height);
-        bool resized = false;
-        var size = new Forms.ToolStripMenuItem("小猫大小");
-        var slider = new ScaleTrackBar(settings.Scale);
-        var valueLabel = new Forms.ToolStripLabel(slider.PercentageText);
-        size.DropDownItems.Add(valueLabel);
-        size.DropDownItems.Add(new Forms.ToolStripControlHost(slider));
-        size.DropDownOpened += delegate
+        if (settingsWindow == null)
         {
-            anchor = new Point(Left + Width, Top + Height);
-            slider.Focus();
-        };
-        size.DropDown.Closing += delegate(object owner, Forms.ToolStripDropDownClosingEventArgs args)
-        {
-            if (args.CloseReason == Forms.ToolStripDropDownCloseReason.ItemClicked) args.Cancel = true;
-        };
-        slider.ValueChanged += delegate
-        {
-            valueLabel.Text = slider.PercentageText;
-            settings.Scale = slider.Value / 1000.0;
-            ApplySize();
-            Left = anchor.X - Width; Top = anchor.Y - Height;
-            resized = true;
-        };
-        size.DropDownClosed += delegate
-        {
-            if (!resized) return;
-            if (!InView()) DockToCorner();
-            Save(); resized = false;
-        };
-        return size;
-    }
-    private Forms.ToolStripMenuItem GamepadModeMenu()
-    {
-        var mode = new Forms.ToolStripMenuItem("手柄模式");
-        foreach (var pair in new[]
-        {
-            new { Title = "自动", Value = GamepadMode.Auto },
-            new { Title = "键盘", Value = GamepadMode.Keyboard },
-            new { Title = "手柄", Value = GamepadMode.Gamepad },
-        })
-        {
-            var item = new Forms.ToolStripMenuItem(pair.Title);
-            item.Checked = settings.Mode == pair.Value;
-            GamepadMode value = pair.Value;
-            item.Click += delegate
+            settingsWindow = new SettingsWindow(new SettingsWindow.Callbacks
             {
-                settings.Mode = value;
-                cat.SetGamepadMode(value);
-                Save();
-            };
-            mode.DropDownItems.Add(item);
+                GetCat = delegate { return settings.Cat; },
+                SetCat = delegate(CatStyle next)
+                {
+                    settings.Cat = cat.Cat = next;
+                    cat.InvalidateVisual(); Save();
+                },
+                GetScale = delegate { return settings.Scale; },
+                SetScale = delegate(double next)
+                {
+                    Point anchor = new Point(Left + Width, Top + Height);
+                    settings.Scale = Math.Max(Preferences.MinPercent / 100.0, Math.Min(Preferences.MaxPercent / 100.0, next));
+                    ApplySize();
+                    Left = anchor.X - Width; Top = anchor.Y - Height;
+                },
+                CommitScale = delegate
+                {
+                    if (!InView()) DockToCorner();
+                    Save();
+                },
+                GetKeyboard = delegate { return settings.Keyboard; },
+                SetKeyboard = delegate(KeyboardStyle next)
+                {
+                    settings.Keyboard = cat.Keyboard = next;
+                    cat.InvalidateVisual(); Save();
+                },
+                GetMouse = delegate { return settings.Mouse; },
+                SetMouse = delegate(MouseStyle next)
+                {
+                    settings.Mouse = cat.Mouse = next;
+                    cat.InvalidateVisual(); Save();
+                },
+                GetGamepadMode = delegate { return settings.Mode; },
+                SetGamepadMode = delegate(GamepadMode next)
+                {
+                    settings.Mode = next;
+                    cat.SetGamepadMode(next);
+                    Save();
+                },
+                GetGamepad = delegate { return settings.Gamepad; },
+                SetGamepad = delegate(GamepadStyle next)
+                {
+                    settings.Gamepad = cat.Gamepad = next;
+                    cat.InvalidateVisual(); Save();
+                },
+                GetPasswordMode = delegate { return settings.PasswordMode; },
+                SetPasswordMode = delegate(bool on)
+                {
+                    settings.PasswordMode = cat.PasswordModeEnabled = on;
+                    cat.InvalidateVisual(); Save();
+                },
+                GetIdleMinutes = delegate { return settings.IdleMinutes; },
+                SetIdleMinutes = delegate(int mins)
+                {
+                    settings.IdleMinutes = cat.IdleMinutes = mins;
+                    Save();
+                },
+                GetLabels = delegate { return settings.Labels; },
+                SetLabels = delegate(bool on)
+                {
+                    settings.Labels = cat.LabelsEnabled = on;
+                    cat.ClearLabels(); Save();
+                },
+                GetOnTop = delegate { return settings.OnTop; },
+                SetOnTop = delegate(bool on)
+                {
+                    Topmost = settings.OnTop = on;
+                    Save();
+                },
+                GetClickThrough = delegate { return settings.ClickThrough; },
+                SetClickThrough = delegate(bool on)
+                {
+                    settings.ClickThrough = on;
+                    ApplyStyle(); Save();
+                },
+                GetPetVisible = delegate { return IsVisible; },
+                TogglePetVisible = delegate
+                {
+                    if (IsVisible) { timer.Stop(); Hide(); cat.ClearLabels(); } else Reveal();
+                },
+                DockToCorner = delegate { DockToCorner(); Reveal(); Save(); },
+                ExitApp = delegate { Close(); }
+            });
         }
-        return mode;
+        settingsWindow.SyncFromState();
+        if (!settingsWindow.IsVisible)
+        {
+            Rect area = LogicalArea(Forms.Screen.FromPoint(Forms.Cursor.Position).WorkingArea);
+            double w = settingsWindow.Width;
+            double h = 510;
+            double x = Math.Max(area.Left + 12, Math.Min(area.Right - w - 12, area.Right - w - 24));
+            double y = Math.Max(area.Top + 12, Math.Min(area.Bottom - h - 12, area.Bottom - h - 24));
+            settingsWindow.Left = x;
+            settingsWindow.Top = y;
+            settingsWindow.Show();
+        }
+        settingsWindow.Activate();
     }
     private void BuildMenu(object sender, CancelEventArgs e)
     {
         menuOpen = true;
         while (menu.Items.Count > 0) menu.Items[0].Dispose();
-        menu.Items.Add(styleMenu.Cats(settings.Cat, delegate(CatStyle next)
-        {
-            settings.Cat = cat.Cat = next;
-            cat.InvalidateVisual(); Save();
-        }));
-        menu.Items.Add(SizeMenu());
-        menu.Items.Add(styleMenu.Keyboards(settings.Keyboard, delegate(KeyboardStyle next)
-        {
-            settings.Keyboard = cat.Keyboard = next;
-            cat.InvalidateVisual(); Save();
-        }));
-        menu.Items.Add(styleMenu.Mice(settings.Mouse, delegate(MouseStyle next)
-        {
-            settings.Mouse = cat.Mouse = next;
-            cat.InvalidateVisual(); Save();
-        }));
-        menu.Items.Add(GamepadModeMenu());
-        menu.Items.Add(styleMenu.Gamepads(settings.Gamepad, delegate(GamepadStyle next)
-        {
-            settings.Gamepad = cat.Gamepad = next;
-            cat.InvalidateVisual(); Save();
-        }));
-        menu.Items.Add(Item("显示浮动键帽", settings.Labels, delegate
-        {
-            settings.Labels = cat.LabelsEnabled = !settings.Labels;
-            cat.ClearLabels(); Save();
-        }));
-        menu.Items.Add(Item("保持置顶", settings.OnTop, delegate { Topmost = settings.OnTop = !settings.OnTop; Save(); }));
-        menu.Items.Add(Item("鼠标穿透", settings.ClickThrough, delegate
-        {
-            settings.ClickThrough = !settings.ClickThrough; ApplyStyle(); Save();
-        }));
+        var openItem = Item("打开设置…", false, OpenSettings);
+        openItem.Font = new Drawing.Font(menu.Font, Drawing.FontStyle.Bold);
+        menu.Items.Add(openItem);
         menu.Items.Add(new Forms.ToolStripSeparator());
         menu.Items.Add(Item("回到屏幕右下角", false, delegate { DockToCorner(); Reveal(); Save(); }));
         menu.Items.Add(Item(IsVisible ? "暂时隐藏" : "显示小猫", false, delegate
@@ -345,11 +372,19 @@ internal sealed class PetWindow : Window
     private void CleanUp()
     {
         timer.Stop(); Save();
+        if (settingsWindow != null)
+        {
+            SettingsWindow w = settingsWindow;
+            settingsWindow = null;
+            w.AllowClose = true;
+            try { w.Close(); } catch (Exception) { }
+        }
+        PasswordMonitor.Stop();
         GamepadInput.Stop();
         DualSenseInput.Stop();
         if (listening) { listening = false; try { WindowsInput.Listen(hwnd, false); } catch (Win32Exception) { } }
         if (source != null) source.RemoveHook(Messages);
         if (inputBuffer != IntPtr.Zero) { Marshal.FreeHGlobal(inputBuffer); inputBuffer = IntPtr.Zero; }
-        tray.Visible = false; tray.Dispose(); menu.Dispose(); styleMenu.Dispose(); if (icon != null) icon.Dispose();
+        tray.Visible = false; tray.Dispose(); menu.Dispose(); if (icon != null) icon.Dispose();
     }
 }

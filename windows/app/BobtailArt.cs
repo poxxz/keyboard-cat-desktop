@@ -1,4 +1,4 @@
-﻿using System;
+using System;
 using System.Windows;
 using System.Windows.Media;
 
@@ -127,7 +127,7 @@ internal static class BobtailArt
         Line(dc,"#E3A168",1.2,"M 14,-18 Q 18,-18 20,-15 M 22,-17 Q 26,-16 28,-13");
     }
 
-    private static void DrawEye(DrawingContext dc, int side, double gazeX, double gazeY, double blink)
+    private static void DrawEye(DrawingContext dc, int side, double gazeX, double gazeY, double blink, double crouch = 0)
     {
         dc.PushTransform(new TranslateTransform(side*19.8,-8));
         dc.PushTransform(new ScaleTransform(side*10.2/12,8.8/9));
@@ -140,9 +140,12 @@ internal static class BobtailArt
             dc.PushTransform(new ScaleTransform(1,1-blink));
             dc.DrawGeometry(Iris,EyeEdge,Eye);
             dc.PushClip(Eye);
-            double x=-.6+side*gazeX*4.5, y=.3+gazeY*3.5;
-            dc.DrawEllipse(Pupil,null,new Point(x,y),5.7,8);
-            dc.DrawEllipse(Glint,null,new Point(x-side*1.7,y-3.1),1.9,1.85);
+            double boost = 1.0 + 0.16 * crouch;
+            double x = -.3 + side * gazeX * 6.4, y = .2 + gazeY * 4.6;
+            double rx = (3.7 + Math.Abs(gazeY) * 0.65) * boost;
+            double ry = 6.2 * boost;
+            dc.DrawEllipse(Pupil, null, new Point(x, y), rx, ry);
+            dc.DrawEllipse(Glint, null, new Point(x - side * 1.35, y - 2.3), 1.35, 1.4);
             dc.Pop();
             dc.Pop();
         }
@@ -150,11 +153,20 @@ internal static class BobtailArt
         dc.Pop();
     }
 
-    private static void DrawHead(DrawingContext dc, double gazeX, double gazeY, double blink)
+    private static readonly Brush LeftLidFur = Ink("#DC9656");
+    private static readonly Brush RightLidFur = Ink("#3F3B42");
+
+    private static void DrawHead(DrawingContext dc, double gazeX, double gazeY, double blink,
+                                 double anger = 0, double angerBreath = 0.5, double crouch = 0)
     {
         dc.DrawDrawing(HeadCoat);
-        DrawEye(dc,-1,gazeX,gazeY,blink);
-        DrawEye(dc,1,gazeX,gazeY,blink);
+        DrawEye(dc,-1,gazeX,gazeY,blink,crouch);
+        DrawEye(dc,1,gazeX,gazeY,blink,crouch);
+        if (anger > .01 && blink <= .92)
+        {
+            CatArt.DrawAngryEyelid(dc, -19.8, -8.0, 10.6, 8.8, -1, LeftLidFur, Lid, anger, angerBreath);
+            CatArt.DrawAngryEyelid(dc, 19.8, -8.0, 10.6, 8.8, 1, RightLidFur, Lid, anger, angerBreath);
+        }
         dc.PushTransform(new TranslateTransform(gazeX*1.55,gazeY*.5));
         dc.DrawDrawing(Muzzle);
         dc.Pop();
@@ -173,13 +185,19 @@ internal static class BobtailArt
         dc.Pop();
     }
 
-    private static void DrawArm(DrawingContext dc, Point shoulder, Point paw, int side, double activity)
+    private static void DrawArm(DrawingContext dc, Point shoulder, Point paw, int side, double activity, double pawRaised)
     {
-        double bend = Math.Max(0,Math.Min(1,(228-paw.Y)/44));
+        double bend = pawRaised >= 0 ? pawRaised : Math.Max(0,Math.Min(1,(228-paw.Y)/44));
+        double high = Math.Max(0, Math.Min(1, (185.0 - paw.Y) / 55.0));
+        high = high * high * (3 - 2 * high);
         Vector span = paw-shoulder;
-        Point near = new Point(shoulder.X+span.X*.18+side*(3+7*bend),shoulder.Y+10+bend*9);
-        Point far = new Point(paw.X-span.X*.20+side*(2+12*bend),paw.Y-16+31*bend);
-        const int steps = 20;
+        Point nearLow = new Point(shoulder.X+span.X*.18+side*(3+7*bend),shoulder.Y+10+bend*9);
+        Point farLow = new Point(paw.X-span.X*.20+side*(2+12*bend),paw.Y-16+31*bend);
+        Point nearHigh = new Point(shoulder.X+span.X*.32+side*6,shoulder.Y+span.Y*.28+12);
+        Point farHigh = new Point(shoulder.X+span.X*.72+side*4,shoulder.Y+span.Y*.72+8);
+        Point near = new Point(nearLow.X + (nearHigh.X - nearLow.X) * high, nearLow.Y + (nearHigh.Y - nearLow.Y) * high);
+        Point far = new Point(farLow.X + (farHigh.X - farLow.X) * high, farLow.Y + (farHigh.Y - farLow.Y) * high);
+        const int steps = 24;
         var opposite = new Point[steps+1];
         var arm = new StreamGeometry { FillRule=FillRule.Nonzero };
         using (StreamGeometryContext path=arm.Open())
@@ -192,7 +210,10 @@ internal static class BobtailArt
                 Vector tangent=(near-shoulder)*(3*v*v)+(far-near)*(6*v*u)+(paw-far)*(3*u*u);
                 if (tangent.LengthSquared<.01) tangent=new Vector(0,1);
                 tangent.Normalize();
-                double radius=(12*BodyWidth*(1-u)+8.1*u)*(.15+.85*Math.Min(1,u/.16));
+                double baseR=12*BodyWidth*(1-u)+8.1*u;
+                double k=Math.Min(1,u/.14);
+                double dome=.22+.78*Math.Sqrt(Math.Max(0,1-(1-k)*(1-k)));
+                double radius=baseR*dome;
                 Vector normal=new Vector(-tangent.Y,tangent.X)*radius;
                 if (i==0) path.BeginFigure(center+normal,true,true);
                 else path.LineTo(center+normal,true,true);
@@ -200,7 +221,9 @@ internal static class BobtailArt
             }
             for (int i=steps; i>=0; i--) path.LineTo(opposite[i],true,true);
         }
-        dc.DrawGeometry(Sleeve,null,arm);
+        Brush blendedSleeve = CatArt.ArmGradient(
+            Color.FromRgb(242, 231, 214), Color.FromRgb(246, 237, 220), 0.35, Color.FromRgb(246, 236, 218), shoulder, paw);
+        dc.DrawGeometry(blendedSleeve,null,arm);
         dc.DrawEllipse(Paw,null,paw,8.65,7.4);
         if (activity<.25)
             dc.DrawLine(Toe,new Point(paw.X-1.8,paw.Y+3.5),new Point(paw.X-1.9,paw.Y+5.9));
@@ -209,15 +232,17 @@ internal static class BobtailArt
     private static double Lean(Point leftPaw)
     {
         double s=Math.Max(0,Math.Min(1,(157-leftPaw.X)/50));
-        return s*s*(3-2*s);
+        double h=Math.Max(0,Math.Min(1,(195-leftPaw.Y)/45));
+        double high=h*h*(3-2*h);
+        return s*s*(3-2*s)*(1-high);
     }
 
     private static Matrix HeadPose(double t, double gazeX, double gazeY, double lean)
     {
         Matrix pose=Matrix.Identity;
         pose.Scale(.95,.99);
-        pose.Rotate(3.2+2.8*gazeX-3*lean);
-        pose.Translate(214-40*lean+2.5*gazeX,BodyTop-2+2*gazeY+Math.Sin(t*1.7)*.6);
+        pose.Rotate(3.2+2.8*gazeX-2.4*lean);
+        pose.Translate(214-32.8*lean+2.5*gazeX,BodyTop-2+2*gazeY+Math.Sin(t*1.7)*.6);
         return pose;
     }
 
@@ -230,17 +255,27 @@ internal static class BobtailArt
 
     public static void Draw(DrawingContext dc, double time, double gazeX, double gazeY, double blink,
                             Point leftPaw, Point rightPaw, double leftActivity, double rightActivity,
-                            Action<DrawingContext> between = null)
+                            Action<DrawingContext> between = null, double pawRaised = -1, CatMood mood = default(CatMood))
     {
-        double lean=Lean(leftPaw);
-        dc.PushTransform(new TranslateTransform(249,207));
-        dc.PushTransform(new RotateTransform(Math.Sin(time*1.8)*3));
+        double sleep = Math.Max(0, Math.Min(1, mood.Sleep));
+        double crouch = Math.Max(0, Math.Min(1, mood.Crouch));
+        double lean=Lean(leftPaw) * (1 - sleep);
+        double syScale = 1.0 - 0.45 * sleep - 0.10 * crouch;
+        double sxScale = 1.0 + 0.04 * sleep + 0.04 * crouch;
+        double bodyYShift = (1.0 - syScale) * (235.0 - BodyTop);
+        double angerBreath = 0.5 + 0.5 * Math.Sin(time * 6.8);
+
+        double tailSpeed = 1.8 + mood.Anger * 3.0 + crouch * 2.5 - sleep * 1.0;
+        double tailAmp = 3.0 + mood.Anger * 3.0 + crouch * 3.5;
+        dc.PushTransform(new TranslateTransform(249,207 + 8 * sleep));
+        dc.PushTransform(new RotateTransform(Math.Sin(time*tailSpeed)*tailAmp));
         dc.DrawDrawing(TailCoat);
         dc.Pop();
         dc.Pop();
+
         dc.PushTransform(new MatrixTransform(1,0,.285*lean,1,-233*.285*lean,0));
-        dc.PushTransform(new TranslateTransform(214,BodyTop));
-        dc.PushTransform(new ScaleTransform(BodyWidth,1));
+        dc.PushTransform(new TranslateTransform(214,BodyTop + bodyYShift));
+        dc.PushTransform(new ScaleTransform(BodyWidth * sxScale, syScale));
         dc.DrawDrawing(BodyCoat);
         dc.Pop();
         dc.Pop();
@@ -249,10 +284,27 @@ internal static class BobtailArt
         // gamepad) goes between the torso and the forelegs, or the opaque
         // body hides it.
         if (between != null) between(dc);
-        DrawArm(dc,new Point(214+25*BodyWidth-29*lean,BodyTop+23),rightPaw,1,rightActivity);
-        DrawArm(dc,new Point(214-25*BodyWidth-29*lean,BodyTop+23),leftPaw,-1,leftActivity);
-        dc.PushTransform(new MatrixTransform(HeadPose(time,gazeX,gazeY,lean)));
-        DrawHead(dc,gazeX,gazeY,blink);
+        double rSy = BodyTop + bodyYShift + 17.0 * syScale;
+        double lSy = BodyTop + bodyYShift + (17.0 - 5.0 * lean) * syScale;
+        double rShear = (rSy - 233.0) * 0.285 * lean;
+        double lShear = (lSy - 233.0) * 0.285 * lean;
+        DrawArm(dc,new Point(214+22*BodyWidth*sxScale+rShear, rSy),rightPaw,1,rightActivity,pawRaised);
+        DrawArm(dc,new Point(214-(22*BodyWidth*sxScale+2.5*lean)+lShear, lSy),leftPaw,-1,leftActivity,pawRaised);
+
+        double breathFreq = sleep > 0.5 ? 1.15 : 1.7;
+        double breathAmp = sleep > 0.5 ? 1.6 : 0.6;
+        double hx = 214 - 32.8*lean + 2.5*gazeX*(1 - sleep) - 2.0*sleep;
+        double hyNorm = BodyTop - 2 + 2*gazeY + Math.Sin(time*breathFreq)*breathAmp + 12.0*crouch;
+        double hy = hyNorm + (186 + Math.Sin(time*1.15)*1.8 - hyNorm)*sleep;
+        double rot = (3.2 + 2.8*gazeX - 2.4*lean)*(1 - sleep) - 8.5*sleep;
+        dc.PushTransform(new TranslateTransform(hx, hy));
+        dc.PushTransform(new RotateTransform(rot));
+        dc.PushTransform(new ScaleTransform(.95, .99));
+        DrawHead(dc,gazeX,gazeY,blink,mood.Anger,angerBreath,mood.Crouch);
+        if (mood.Sweat > .01) CatArt.DrawSweat(dc, time, mood.Sweat);
+        if (mood.Anger > .01) CatArt.DrawAnger(dc, time, mood.Anger);
+        dc.Pop();
+        dc.Pop();
         dc.Pop();
     }
 }
