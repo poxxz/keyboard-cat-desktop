@@ -514,7 +514,7 @@ internal sealed class SettingsWindow : Window
         for (int i = 0; i < tabPanels.Count; ++i)
         {
             bool active = i == index;
-            tabPanels[i].Visibility = active ? Visibility.Visible : Visibility.Collapsed;
+            tabPanels[i].Visibility = active ? Visibility.Visible : Visibility.Hidden;
             navButtons[i].Background = active ? (Brush)Gradient(0xFFE49E, 0xFFD066, 0, 0, 0, 1) : Brushes.Transparent;
             navButtons[i].BorderBrush = active ? BrushOf(0xE8AE36) : Brushes.Transparent;
             Brush fg = active ? BrushOf(0x4A300B) : BrushOf(0x6A5B4B);
@@ -954,6 +954,7 @@ internal sealed class SettingsWindow : Window
 
     private UIElement BuildSystemTab()
     {
+        DockPanel page = new DockPanel { LastChildFill = false };
         StackPanel stack = new StackPanel();
 
         StackPanel sysToggles = new StackPanel();
@@ -997,9 +998,14 @@ internal sealed class SettingsWindow : Window
         btnGrid.Children.Add(bHide);
         btnGrid.Children.Add(bExit);
         actSec.Children.Add(btnGrid);
-        stack.Children.Add(MakeSectionCard(actSec));
+        Border actCard = MakeSectionCard(actSec);
+        actCard.Margin = new Thickness(0);
+        stack.Children.Add(actCard);
 
-        // Version & GitHub official release updater card
+        DockPanel.SetDock(stack, Dock.Top);
+        page.Children.Add(stack);
+
+        // Version & GitHub official release updater card anchored at bottom
         DockPanel updateRow = new DockPanel { LastChildFill = true };
         updateBtnText = new TextBlock
         {
@@ -1055,10 +1061,11 @@ internal sealed class SettingsWindow : Window
 
         Border aboutCard = MakeSectionCard(updateRow);
         aboutCard.Background = BrushOf(0xF6F0E3);
-        aboutCard.Margin = new Thickness(0);
-        stack.Children.Add(aboutCard);
+        aboutCard.Margin = new Thickness(0, 10, 0, 0);
+        DockPanel.SetDock(aboutCard, Dock.Bottom);
+        page.Children.Add(aboutCard);
 
-        return stack;
+        return page;
     }
 
     private void RefreshUpdateButtonVisual()
