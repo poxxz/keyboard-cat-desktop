@@ -32,13 +32,15 @@ jobs:
         run: |
           $exe = (Resolve-Path windows/build/键盘小黑猫.exe).Path
           $version = [Diagnostics.FileVersionInfo]::GetVersionInfo($exe)
-          $tag = "v$($version.FileMajorPart).$($version.FileMinorPart).$($version.FileBuildPart)"
+          $baseVer = "$($version.FileMajorPart).$($version.FileMinorPart).$($version.FileBuildPart)"
+          $tag = if ($version.FilePrivatePart -gt 0) { "v$baseVer-v$($version.FilePrivatePart)" } else { "v$baseVer" }
+          $title = if ($version.FilePrivatePart -gt 0) { "键盘小黑猫 v$baseVer v$($version.FilePrivatePart)" } else { "键盘小黑猫 v$baseVer" }
           $installer = (Get-ChildItem windows/build -Filter '*Windows安装包.exe').FullName
           if (-not $installer) { throw 'Installer not found in windows/build.' }
           # Ship English (ASCII) names for the release assets: the Chinese
           # filenames get mangled when uploaded from the Windows runner.
           $exeEn = Join-Path (Split-Path $exe) 'KeyboardCat.exe'
-          $installerEn = Join-Path (Split-Path $installer) "KeyboardCat-$($version.FileMajorPart).$($version.FileMinorPart).$($version.FileBuildPart)-Windows-Setup.exe"
+          $installerEn = Join-Path (Split-Path $installer) "KeyboardCat-$baseVer-Windows-Setup.exe"
           Copy-Item $exe $exeEn
           Copy-Item $installer $installerEn
           # Replace any previous release with this tag so a re-run uploads clean assets.
@@ -46,8 +48,17 @@ jobs:
           if ($LASTEXITCODE -eq 0) {
             Write-Host "Release $tag already exists, deleting it for a clean re-upload."
             gh release delete $tag --yes --cleanup-tag
+            Start-Sleep -Seconds 3
           }
-          gh release create $tag --title "键盘小黑猫 $tag (v2)" --notes "Windows 正式构建（v1.7.2 v2），含 KeyboardCat.exe（免安装版）与安装包。本版更新：1) 全猫种极限拉扯肩部连续与色差优化，重绘咖啡开脸虎斑面罩并统一多款猫咪竖椭圆瞳仁；2) 密码防偷窥模式支持网页与桌面 exe 应用，触发后闭眼停爪并覆盖请勿偷窥磨砂罩；3) 连续快速打字动态流汗与呼吸灯愤怒表情（兼容手柄模式）；4) 闲置自动随机趴睡（Zzz）或大幅度抓虫子互动；5) 全新 2K 高清奶油风模块化设置页（三标签页高度统一不跳动），新增开机自启与 GitHub 正式版一键检测更新及自动清理。" $exeEn $installerEn
+          $notes = "Windows 正式构建（$title），含 KeyboardCat.exe（免安装版）与安装包。本版更新：1) 全猫种极限拉扯肩部连续与色差优化，重绘咖啡开脸虎斑面罩并统一多款猫咪竖椭圆瞳仁；2) 密码防偷窥模式支持网页与桌面 exe 应用，触发后闭眼停爪并覆盖请勿偷窥磨砂罩；3) 连续快速打字动态流汗与呼吸灯愤怒表情（兼容手柄模式）；4) 闲置自动随机趴睡（Zzz）或大幅度抓虫子互动；5) 全新 2K 高清奶油风模块化设置页（三标签页高度统一不跳动），新增开机自启与 GitHub 正式版一键检测更新及自动清理。"
+          $created = $false
+          for ($attempt = 1; $attempt -le 4; $attempt++) {
+            gh release create $tag --title $title --notes $notes $exeEn $installerEn
+            if ($LASTEXITCODE -eq 0) { $created = $true; break }
+            Write-Host "gh release create attempt $attempt failed ($LASTEXITCODE), retrying in 6s..."
+            Start-Sleep -Seconds 6
+          }
+          if (-not $created) { throw "Failed to create GitHub Release $tag after 4 attempts." }
           # Verify the release actually carries both files under their English names.
           $expected = @([System.IO.Path]::GetFileName($exeEn), [System.IO.Path]::GetFileName($installerEn))
           $assets = gh release view $tag --json assets --jq '.assets[].name'
