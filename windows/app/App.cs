@@ -15,7 +15,7 @@ using Forms = System.Windows.Forms;
 
 [assembly: AssemblyTitle("键盘小黑猫")]
 [assembly: AssemblyDescription("会跟着键盘和鼠标一起动的小黑猫桌宠")]
-[assembly: AssemblyVersion("1.7.2.2")]
+[assembly: AssemblyVersion("1.7.3.0")]
 internal static class Program
 {
     [STAThread]

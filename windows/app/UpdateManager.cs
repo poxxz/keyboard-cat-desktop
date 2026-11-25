@@ -33,18 +33,20 @@ internal static class UpdateManager
 
     internal static string CurrentVersionText
     {
-        get
-        {
-            Version v = GetCurrentVersion();
-            return v.Major + "." + v.Minor + "." + Math.Max(0, v.Build);
-        }
+        get { return FormatVersion(GetCurrentVersion()); }
+    }
+
+    private static string FormatVersion(Version v)
+    {
+        string baseVer = v.Major + "." + v.Minor + "." + Math.Max(0, v.Build);
+        return v.Revision > 0 ? baseVer + " v" + v.Revision : baseVer;
     }
 
     private static Version GetCurrentVersion()
     {
         Version v = Assembly.GetExecutingAssembly().GetName().Version;
-        if (v == null) return new Version(1, 0, 0);
-        return new Version(v.Major, v.Minor, Math.Max(0, v.Build));
+        if (v == null) return new Version(1, 0, 0, 0);
+        return new Version(v.Major, v.Minor, Math.Max(0, v.Build), Math.Max(0, v.Revision));
     }
 
     private static string StageDir
@@ -134,7 +136,7 @@ internal static class UpdateManager
                 res.Error = "版本号格式无法识别 (" + tag + ")";
                 return res;
             }
-            res.LatestVersion = latest.Major + "." + latest.Minor + "." + Math.Max(0, latest.Build);
+            res.LatestVersion = FormatVersion(latest);
             res.HasUpdate = latest > current;
 
             ExtractAssets(json, res);
@@ -165,14 +167,16 @@ internal static class UpdateManager
         return Regex.Unescape(m.Groups[1].Value);
     }
 
+    // Parses tags like v1.7.3, v1.7.3.2, v1.7.3-v2, v1.7.3_v2, or v1.7.3 v2 into 4-part Version.
     private static Version ParseTagVersion(string tag)
     {
-        Match m = Regex.Match(tag, @"(\d+)\.(\d+)(?:\.(\d+))?");
+        Match m = Regex.Match(tag, @"(\d+)\.(\d+)(?:\.(\d+))?(?:(?:\.|[-_\s]*[vV])(\d+))?");
         if (!m.Success) return null;
         int maj = int.Parse(m.Groups[1].Value);
         int min = int.Parse(m.Groups[2].Value);
         int pat = m.Groups[3].Success ? int.Parse(m.Groups[3].Value) : 0;
-        return new Version(maj, min, pat);
+        int rev = m.Groups[4].Success ? int.Parse(m.Groups[4].Value) : 0;
+        return new Version(maj, min, pat, rev);
     }
 
     private static void ExtractAssets(string json, CheckResult res)
