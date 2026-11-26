@@ -66,3 +66,39 @@ jobs:
             if ($assets -notcontains $name) { throw "Asset $name is missing from release $tag." }
           }
           Write-Host "Release $tag has both assets."
+
+      - name: Publish the same release to Gitee
+        shell: pwsh
+        env:
+          GH_TOKEN: ${{ github.token }}
+          GITEE_TOKEN: ${{ secrets.GITEE_TOKEN }}
+        run: |
+          $exeZh = (Resolve-Path windows/build/键盘小黑猫.exe).Path
+          $version = [Diagnostics.FileVersionInfo]::GetVersionInfo($exeZh)
+          $tag = "v$($version.FileMajorPart).$($version.FileMinorPart).$($version.FileBuildPart)"
+          $buildDir = Split-Path $exeZh
+          $exe = Join-Path $buildDir 'KeyboardCat.exe'
+          $installer = Join-Path $buildDir "KeyboardCat-$($version.FileMajorPart).$($version.FileMinorPart).$($version.FileBuildPart)-Windows-Setup.exe"
+          if (-not (Test-Path $exe)) { throw "Asset $exe not found." }
+          if (-not (Test-Path $installer)) { throw "Asset $installer not found." }
+          $notes = gh release view $tag --json body -q .body
+          $api = "https://gitee.com/api/v5/repos/poxxz/keyboard-cat-desktop"
+          # Re-running a version replaces its Gitee release, same as on GitHub.
+          $list = Invoke-RestMethod -Uri "$api/releases?access_token=$env:GITEE_TOKEN&per_page=100" -Method Get
+          $old = $list | Where-Object { $_.tag_name -eq $tag }
+          if ($old) {
+            Invoke-RestMethod -Uri "$api/releases/$($old.id)?access_token=$env:GITEE_TOKEN" -Method Delete
+            Write-Host "Deleted previous Gitee release $tag."
+          }
+          $created = Invoke-RestMethod -Uri "$api/releases" -Method Post -Body @{
+            access_token    = $env:GITEE_TOKEN
+            tag_name        = $tag
+            name            = "键盘小黑猫 $tag"
+            body            = $notes
+            target_commitish = 'main'
+          }
+          foreach ($file in @($exe, $installer)) {
+            $resp = curl.exe -s -F "access_token=$env:GITEE_TOKEN" -F "file=@$file" "$api/releases/$($created.id)/attach_files"
+            Write-Host "Uploaded $(Split-Path $file -Leaf): $resp"
+          }
+          Write-Host "Gitee release $tag published with both assets."
