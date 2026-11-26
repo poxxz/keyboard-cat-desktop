@@ -15,7 +15,7 @@ using Forms = System.Windows.Forms;
 
 [assembly: AssemblyTitle("键盘小黑猫")]
 [assembly: AssemblyDescription("会跟着键盘和鼠标一起动的小黑猫桌宠")]
-[assembly: AssemblyVersion("1.7.3.0")]
+[assembly: AssemblyVersion("1.8.0.0")]
 internal static class Program
 {
     [STAThread]
@@ -39,6 +39,9 @@ internal static class Program
 
 internal sealed class PetWindow : Window
 {
+    private const double LongPressDragSeconds = 0.20;
+    private const double HoldCancelDistance = 12.0;
+
     private readonly Preferences settings = Preferences.Load();
     private readonly CatScene cat = new CatScene();
     private readonly Canvas stage = new Canvas();
@@ -51,12 +54,15 @@ internal sealed class PetWindow : Window
     private readonly Forms.NotifyIcon tray = new Forms.NotifyIcon();
     private readonly Drawing.Icon icon;
     private SettingsWindow settingsWindow;
+    private UpdateManager.CheckResult pendingUpdate;
     private IntPtr hwnd, inputBuffer;
     private Drawing.Rectangle cursorMonitor;
-    private bool listening, menuOpen;
+    private bool listening, menuOpen, disposed;
+    private bool holdingForDrag, dragging;
+    private double pressStartAt, lastPetMouseOverAt = -10;
+    private Point pressStartDip;
     private Point? dragStart;
     private Point dragOrigin;
-    private bool dragging;
     private HwndSource source;
 
     public PetWindow()
@@ -77,6 +83,7 @@ internal sealed class PetWindow : Window
         cat.PasswordModeEnabled = settings.PasswordMode;
         cat.IdleMinutes = settings.IdleMinutes;
         cat.Cat = settings.Cat;
+        ApplyStoredCustomSkin();
         cat.Keyboard = settings.Keyboard;
         cat.Mouse = settings.Mouse;
         cat.Gamepad = settings.Gamepad;
@@ -99,24 +106,52 @@ internal sealed class PetWindow : Window
         tray.ContextMenuStrip = menu;
         tray.MouseClick += delegate(object sender, Forms.MouseEventArgs e)
         {
-            if (e.Button == Forms.MouseButtons.Left) OpenSettings();
+            if (e.Button == Forms.MouseButtons.Left) OpenSettings(null, false);
         };
-        tray.DoubleClick += delegate { Reveal(); OpenSettings(); };
+        tray.DoubleClick += delegate { Reveal(); OpenSettings(null, false); };
+        tray.BalloonTipClicked += delegate { Reveal(); OpenSettings(3, false); };
         menu.Font = new Drawing.Font("Microsoft YaHei UI", 9f);
         menu.Opening += BuildMenu;
         menu.Closed += delegate { menuOpen = false; };
         MouseLeftButtonDown += BeginDrag;
         MouseMove += ContinueDrag;
-        MouseLeftButtonUp += delegate { EndDrag(); };
-        LostMouseCapture += delegate { if (dragStart.HasValue) EndDrag(); };
+        MouseLeftButtonUp += delegate { EndDrag(true); };
+        LostMouseCapture += delegate { if (holdingForDrag || dragging) EndDrag(false); };
+        MouseLeave += delegate
+        {
+            if (!dragging && !holdingForDrag)
+            {
+                cat.SetDragVisual(false, 0, false);
+                if (Cursor != Cursors.Arrow) Cursor = Cursors.Arrow;
+            }
+        };
         MouseRightButtonUp += delegate(object sender, MouseButtonEventArgs e)
         {
-            OpenSettings(); e.Handled = true;
+            OpenSettings(null, true); e.Handled = true;
         };
-        Cursor = Cursors.Hand;
+        Cursor = Cursors.Arrow;
         timer.Interval = TimeSpan.FromMilliseconds(1000.0 / 40);
         timer.Tick += delegate { Tick(); };
         Closed += delegate { CleanUp(); };
+    }
+
+    private void ApplyStoredCustomSkin()
+    {
+        if (string.IsNullOrEmpty(settings.CustomSkinId))
+        {
+            cat.CustomSkin = null;
+            return;
+        }
+        CatSkinData found = CustomSkinStore.FindById(settings.CustomSkinId);
+        if (found != null)
+        {
+            cat.CustomSkin = new CompiledSkin(found);
+        }
+        else
+        {
+            settings.CustomSkinId = "";
+            cat.CustomSkin = null;
+        }
     }
 
     protected override void OnSourceInitialized(EventArgs args)
@@ -140,6 +175,32 @@ internal sealed class PetWindow : Window
         }
         else DockToCorner();
         timer.Start();
+        if (settings.AutoCheckUpdate) StartBackgroundUpdateCheck();
+    }
+
+    private void StartBackgroundUpdateCheck()
+    {
+        ThreadPool.QueueUserWorkItem(delegate
+        {
+            Thread.Sleep(4500);
+            if (disposed) return;
+            UpdateManager.CheckResult res = UpdateManager.CheckLatest();
+            if (disposed || res == null || !string.IsNullOrEmpty(res.Error) || !res.HasUpdate) return;
+            Dispatcher.BeginInvoke(new Action(delegate
+            {
+                if (disposed) return;
+                pendingUpdate = res;
+                if (settingsWindow != null) settingsWindow.NotifyUpdateAvailable(res);
+                try
+                {
+                    tray.ShowBalloonTip(5500,
+                        "发现新版本 v" + res.LatestVersion,
+                        "已从 " + res.SourceName + " 检测到正式版更新，点击此通知打开设置一键升级",
+                        Forms.ToolTipIcon.Info);
+                }
+                catch (Exception) { }
+            }));
+        });
     }
 
     private IntPtr Messages(IntPtr window, int msg, IntPtr wParam, IntPtr lParam, ref bool handled)
@@ -162,6 +223,12 @@ internal sealed class PetWindow : Window
         int style = WindowsInput.GetWindowLong(hwnd, -20) | 0x08000000 | 0x80;
         style = settings.ClickThrough ? style | 0x20 : style & ~0x20;
         WindowsInput.SetWindowLong(hwnd, -20, style);
+        if (settings.ClickThrough)
+        {
+            if (holdingForDrag || dragging) EndDrag(false);
+            cat.SetDragVisual(false, 0, false);
+            Cursor = Cursors.Arrow;
+        }
     }
     private void ApplySize()
     {
@@ -174,6 +241,39 @@ internal sealed class PetWindow : Window
     {
         WindowsInput.ScreenPoint screen;
         double now = clock.Elapsed.TotalSeconds;
+        bool leftDown = WindowsInput.GetAsyncKeyState(1) < 0;
+        bool rightDown = WindowsInput.GetAsyncKeyState(2) < 0;
+
+        double holdProgress = 0.0;
+        if (holdingForDrag && !dragging)
+        {
+            if (!leftDown)
+            {
+                EndDrag(false);
+            }
+            else
+            {
+                double elapsed = now - pressStartAt;
+                holdProgress = Math.Max(0.0, Math.Min(1.0, elapsed / LongPressDragSeconds));
+                if (elapsed >= LongPressDragSeconds)
+                {
+                    holdingForDrag = false;
+                    dragging = true;
+                    dragStart = CursorInDips();
+                    dragOrigin = new Point(Left, Top);
+                }
+            }
+        }
+        else if (dragging && !leftDown)
+        {
+            EndDrag(false);
+        }
+
+        if (IsMouseOver) lastPetMouseOverAt = now;
+        bool petGrace = cat.CurrentPetZone != PetZone.None && (now - lastPetMouseOverAt) < 0.08;
+        bool allowHand = !settings.ClickThrough && IsVisible && (IsMouseOver || dragging || holdingForDrag || petGrace);
+        cat.SetDragVisual(allowHand, dragging ? 1.0 : holdProgress, dragging);
+
         if (WindowsInput.GetCursorPos(out screen))
         {
             Point p = cat.PointFromScreen(new Point(screen.X, screen.Y));
@@ -182,12 +282,13 @@ internal sealed class PetWindow : Window
             Vector onMonitor = new Vector(
                 2.0 * (screen.X - cursorMonitor.Left) / Math.Max(1, cursorMonitor.Width - 1) - 1,
                 2.0 * (screen.Y - cursorMonitor.Top) / Math.Max(1, cursorMonitor.Height - 1) - 1);
-            bool leftDown = WindowsInput.GetAsyncKeyState(1) < 0;
-            bool rightDown = WindowsInput.GetAsyncKeyState(2) < 0;
             cat.Pointer(new Point(p.X / settings.Scale, p.Y / settings.Scale), leftDown, rightDown, now, onMonitor);
         }
         cat.SetPasswordFocused(PasswordMonitor.IsPasswordFocused);
         cat.Advance(now);
+
+        Cursor desired = (!settings.ClickThrough && cat.IsPetHandVisible) ? Cursors.None : Cursors.Arrow;
+        if (Cursor != desired) Cursor = desired;
     }
 
     private Point CursorInDips()
@@ -198,23 +299,62 @@ internal sealed class PetWindow : Window
     private void BeginDrag(object sender, MouseButtonEventArgs e)
     {
         if (settings.ClickThrough) return;
-        dragStart = CursorInDips();
+        pressStartAt = Now;
+        pressStartDip = CursorInDips();
         dragOrigin = new Point(Left, Top);
-        CaptureMouse(); e.Handled = true;
+        dragStart = null;
+        holdingForDrag = true;
+        dragging = false;
+        CaptureMouse();
+        e.Handled = true;
     }
     private void ContinueDrag(object sender, MouseEventArgs e)
     {
-        if (!dragStart.HasValue || e.LeftButton != MouseButtonState.Pressed) return;
-        Vector delta = CursorInDips() - dragStart.Value;
-        if (!dragging && delta.Length < 4) return;
-        dragging = true;
-        Left = dragOrigin.X + delta.X; Top = dragOrigin.Y + delta.Y;
+        if (e.LeftButton != MouseButtonState.Pressed)
+        {
+            if (holdingForDrag || dragging) EndDrag(false);
+            return;
+        }
+        if (dragging && dragStart.HasValue)
+        {
+            Vector delta = CursorInDips() - dragStart.Value;
+            double nextLeft = dragOrigin.X + delta.X;
+            double dx = nextLeft - Left;
+            Left = nextLeft;
+            Top = dragOrigin.Y + delta.Y;
+            if (Math.Abs(dx) > 0.05) cat.NotifyDragMove(dx);
+            return;
+        }
+        if (holdingForDrag)
+        {
+            Vector drift = CursorInDips() - pressStartDip;
+            if (drift.Length > HoldCancelDistance)
+            {
+                // Moving rapidly before 0.35s cancels long-press drag so rubbing works naturally.
+                holdingForDrag = false;
+                if (IsMouseCaptured) ReleaseMouseCapture();
+            }
+        }
     }
-    private void EndDrag()
+    private void EndDrag(bool fromMouseUp)
     {
+        bool wasDragging = dragging;
+        bool wasHolding = holdingForDrag;
+        double heldFor = Now - pressStartAt;
+        holdingForDrag = false;
+        dragging = false;
         dragStart = null;
         if (IsMouseCaptured) ReleaseMouseCapture();
-        if (dragging) { dragging = false; if (!InView()) DockToCorner(); Save(); }
+        cat.SetDragVisual(!settings.ClickThrough && IsMouseOver, 0, false);
+        if (wasDragging)
+        {
+            if (!InView()) DockToCorner();
+            Save();
+        }
+        else if (fromMouseUp && wasHolding && heldFor < LongPressDragSeconds && cat.CurrentPetZone != PetZone.None)
+        {
+            cat.QuickPat(Now);
+        }
     }
     private Rect LogicalArea(Drawing.Rectangle r)
     {
@@ -250,7 +390,7 @@ internal sealed class PetWindow : Window
         item.Click += delegate { action(); };
         return item;
     }
-    private void OpenSettings()
+    private void OpenSettings(int? tabIndex, bool anchorToPet)
     {
         if (settingsWindow == null)
         {
@@ -260,6 +400,23 @@ internal sealed class PetWindow : Window
                 SetCat = delegate(CatStyle next)
                 {
                     settings.Cat = cat.Cat = next;
+                    settings.CustomSkinId = "";
+                    cat.CustomSkin = null;
+                    cat.InvalidateVisual(); Save();
+                },
+                GetCustomSkinId = delegate { return settings.CustomSkinId; },
+                ApplyCustomSkin = delegate(CatSkinData skin)
+                {
+                    if (skin == null)
+                    {
+                        settings.CustomSkinId = "";
+                        cat.CustomSkin = null;
+                    }
+                    else
+                    {
+                        settings.CustomSkinId = skin.Id;
+                        cat.CustomSkin = new CompiledSkin(skin);
+                    }
                     cat.InvalidateVisual(); Save();
                 },
                 GetScale = delegate { return settings.Scale; },
@@ -318,6 +475,12 @@ internal sealed class PetWindow : Window
                     settings.Labels = cat.LabelsEnabled = on;
                     cat.ClearLabels(); Save();
                 },
+                GetAutoCheckUpdate = delegate { return settings.AutoCheckUpdate; },
+                SetAutoCheckUpdate = delegate(bool on)
+                {
+                    settings.AutoCheckUpdate = on;
+                    Save();
+                },
                 GetOnTop = delegate { return settings.OnTop; },
                 SetOnTop = delegate(bool on)
                 {
@@ -338,18 +501,38 @@ internal sealed class PetWindow : Window
                 DockToCorner = delegate { DockToCorner(); Reveal(); Save(); },
                 ExitApp = delegate { Close(); }
             });
+            if (pendingUpdate != null) settingsWindow.NotifyUpdateAvailable(pendingUpdate);
         }
         settingsWindow.SyncFromState();
-        if (!settingsWindow.IsVisible)
+        if (tabIndex.HasValue) settingsWindow.OpenTab(tabIndex.Value);
+        if (anchorToPet || !settingsWindow.IsVisible)
         {
-            Rect area = LogicalArea(Forms.Screen.FromPoint(Forms.Cursor.Position).WorkingArea);
             double w = settingsWindow.Width;
-            double h = 510;
-            double x = Math.Max(area.Left + 12, Math.Min(area.Right - w - 12, area.Right - w - 24));
-            double y = Math.Max(area.Top + 12, Math.Min(area.Bottom - h - 12, area.Bottom - h - 24));
-            settingsWindow.Left = x;
-            settingsWindow.Top = y;
-            settingsWindow.Show();
+            double h = settingsWindow.ActualHeight > 120 ? settingsWindow.ActualHeight : 576;
+            if (anchorToPet)
+            {
+                Point petCenterDip = new Point(Left + Width * 0.5, Top + Height * 0.5);
+                Point petCenterDev = source.CompositionTarget.TransformToDevice.Transform(petCenterDip);
+                Rect area = LogicalArea(Forms.Screen.FromPoint(new Drawing.Point((int)petCenterDev.X, (int)petCenterDev.Y)).WorkingArea);
+                double x;
+                if (Left - w + 10 >= area.Left + 8) x = Left - w + 10;
+                else if (Left + Width - 10 + w <= area.Right - 8) x = Left + Width - 10;
+                else x = petCenterDip.X - w * 0.5;
+                double y = petCenterDip.Y - h * 0.5;
+                settingsWindow.Left = Math.Max(area.Left + 8, Math.Min(area.Right - w - 8, x));
+                settingsWindow.Top = Math.Max(area.Top + 8, Math.Min(area.Bottom - h - 8, y));
+            }
+            else
+            {
+                Point curDip = CursorInDips();
+                Rect area = LogicalArea(Forms.Screen.FromPoint(Forms.Cursor.Position).WorkingArea);
+                double x = curDip.X - w * 0.5;
+                double y = curDip.Y - h - 14;
+                if (y < area.Top + 8) y = curDip.Y + 14;
+                settingsWindow.Left = Math.Max(area.Left + 8, Math.Min(area.Right - w - 8, x));
+                settingsWindow.Top = Math.Max(area.Top + 8, Math.Min(area.Bottom - h - 8, y));
+            }
+            if (!settingsWindow.IsVisible) settingsWindow.Show();
         }
         settingsWindow.Activate();
     }
@@ -357,7 +540,7 @@ internal sealed class PetWindow : Window
     {
         menuOpen = true;
         while (menu.Items.Count > 0) menu.Items[0].Dispose();
-        var openItem = Item("打开设置…", false, OpenSettings);
+        var openItem = Item("打开设置…", false, delegate { OpenSettings(null, false); });
         openItem.Font = new Drawing.Font(menu.Font, Drawing.FontStyle.Bold);
         menu.Items.Add(openItem);
         menu.Items.Add(new Forms.ToolStripSeparator());
@@ -371,6 +554,7 @@ internal sealed class PetWindow : Window
     }
     private void CleanUp()
     {
+        disposed = true;
         timer.Stop(); Save();
         if (settingsWindow != null)
         {

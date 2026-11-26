@@ -17,6 +17,8 @@ jobs:
     runs-on: windows-latest
     steps:
       - uses: actions/checkout@v4
+        with:
+          fetch-depth: 0
 
       - name: Install NSIS
         run: choco install nsis -y
@@ -30,11 +32,17 @@ jobs:
         env:
           GH_TOKEN: ${{ github.token }}
         run: |
+          $isOfficial = ($env:GITHUB_REF -eq 'refs/heads/main' -or $env:GITHUB_REF -like 'refs/tags/v*')
           $exe = (Resolve-Path windows/build/键盘小黑猫.exe).Path
           $version = [Diagnostics.FileVersionInfo]::GetVersionInfo($exe)
           $baseVer = "$($version.FileMajorPart).$($version.FileMinorPart).$($version.FileBuildPart)"
-          $tag = if ($version.FilePrivatePart -gt 0) { "v$baseVer-v$($version.FilePrivatePart)" } else { "v$baseVer" }
-          $title = if ($version.FilePrivatePart -gt 0) { "键盘小黑猫 v$baseVer v$($version.FilePrivatePart)" } else { "键盘小黑猫 v$baseVer" }
+          $baseTag = if ($version.FilePrivatePart -gt 0) { "v$baseVer-v$($version.FilePrivatePart)" } else { "v$baseVer" }
+          $tag = if ($isOfficial) { $baseTag } else { "$baseTag-test" }
+          $title = if ($isOfficial) {
+            if ($version.FilePrivatePart -gt 0) { "键盘小黑猫 v$baseVer v$($version.FilePrivatePart)" } else { "键盘小黑猫 v$baseVer" }
+          } else {
+            "键盘小黑猫 v$baseVer 测试包"
+          }
           $installer = (Get-ChildItem windows/build -Filter '*Windows安装包.exe').FullName
           if (-not $installer) { throw 'Installer not found in windows/build.' }
           # Ship English (ASCII) names for the release assets: the Chinese
@@ -50,10 +58,16 @@ jobs:
             gh release delete $tag --yes --cleanup-tag
             Start-Sleep -Seconds 3
           }
-          $notes = "Windows 正式构建（$title），含 KeyboardCat.exe（免安装版）与安装包。本版更新：1) 全猫种极限拉扯肩部连续与色差优化，重绘咖啡开脸虎斑面罩并统一多款猫咪竖椭圆瞳仁；2) 密码防偷窥模式支持网页与桌面 exe 应用，触发后闭眼停爪并覆盖请勿偷窥磨砂罩；3) 连续快速打字动态流汗与呼吸灯愤怒表情（兼容手柄模式）；4) 闲置自动随机趴睡（Zzz）或大幅度抓虫子互动；5) 全新 2K 高清奶油风模块化设置页（三标签页高度统一不跳动），新增开机自启与 GitHub 正式版一键检测更新（支持 4 段与 -v2 后缀版本比对及安装后自动清理）。"
+          $notes = "Windows 构建（$title），含 KeyboardCat.exe（免安装版）与安装包。本版更新：1) 更新源切至 Gitee 优先（自动回退 GitHub），新增每次启动后台检测更新（托盘气泡 + 设置页红点，可关闭）；2) 全新纯矢量「皮肤工坊」，内置英短蓝猫/蓝白/美短/布偶/折耳等 4 大底模、11 种脸纹、6 种胸腹、6 种身纹、5 种前爪、6 种尾型、异瞳与配饰，支持实时 HSV 色盘调色、一键重置与 .catskin 导出导入分享，默认首选「星期三」；3) 新增悬停动画抚摸小手（轻揉开心冒爱心星星、揉太快不耐烦、进入抚摸自动扩大防抖动判定范围）与长按 0.2s 侧身自然提起并紧抱键鼠拖动；4) 右键猫咪直接从猫咪当前位置旁打开设置窗口。"
+          $extraArgs = @()
+          if (-not $isOfficial) {
+            $extraArgs += '--prerelease'
+            $extraArgs += '--target'
+            $extraArgs += $env:GITHUB_SHA
+          }
           $created = $false
           for ($attempt = 1; $attempt -le 4; $attempt++) {
-            gh release create $tag --title $title --notes $notes $exeEn $installerEn
+            gh release create $tag --title $title --notes $notes @extraArgs $exeEn $installerEn
             if ($LASTEXITCODE -eq 0) { $created = $true; break }
             Write-Host "gh release create attempt $attempt failed ($LASTEXITCODE), retrying in 6s..."
             Start-Sleep -Seconds 6
@@ -73,32 +87,54 @@ jobs:
           GH_TOKEN: ${{ github.token }}
           GITEE_TOKEN: ${{ secrets.GITEE_TOKEN }}
         run: |
+          if ($env:GITHUB_REF -ne 'refs/heads/main' -and $env:GITHUB_REF -notlike 'refs/tags/v*') {
+            Write-Host 'Feature branch test build; skipping Gitee release sync.'
+            exit 0
+          }
+          if ([string]::IsNullOrWhiteSpace($env:GITEE_TOKEN)) {
+            Write-Host 'GITEE_TOKEN secret is not configured; skipping Gitee release sync.'
+            exit 0
+          }
+          $owner = 'poxxz'
+          $repo = 'keyboard-cat-desktop'
           $exeZh = (Resolve-Path windows/build/键盘小黑猫.exe).Path
           $version = [Diagnostics.FileVersionInfo]::GetVersionInfo($exeZh)
-          $tag = "v$($version.FileMajorPart).$($version.FileMinorPart).$($version.FileBuildPart)"
+          $baseVer = "$($version.FileMajorPart).$($version.FileMinorPart).$($version.FileBuildPart)"
+          $tag = if ($version.FilePrivatePart -gt 0) { "v$baseVer-v$($version.FilePrivatePart)" } else { "v$baseVer" }
+          $title = if ($version.FilePrivatePart -gt 0) { "键盘小黑猫 v$baseVer v$($version.FilePrivatePart)" } else { "键盘小黑猫 v$baseVer" }
           $buildDir = Split-Path $exeZh
           $exe = Join-Path $buildDir 'KeyboardCat.exe'
-          $installer = Join-Path $buildDir "KeyboardCat-$($version.FileMajorPart).$($version.FileMinorPart).$($version.FileBuildPart)-Windows-Setup.exe"
+          $installer = Join-Path $buildDir "KeyboardCat-$baseVer-Windows-Setup.exe"
           if (-not (Test-Path $exe)) { throw "Asset $exe not found." }
           if (-not (Test-Path $installer)) { throw "Asset $installer not found." }
           $notes = gh release view $tag --json body -q .body
-          $api = "https://gitee.com/api/v5/repos/poxxz/keyboard-cat-desktop"
+
+          # Ensure main and tag exist on Gitee before creating the Gitee Release.
+          git tag -f $tag HEAD
+          $giteeRemote = "https://poxxz:$($env:GITEE_TOKEN)@gitee.com/$owner/$repo.git"
+          git push $giteeRemote HEAD:refs/heads/main --force
+          git push $giteeRemote "refs/tags/$tag" --force
+
+          $api = "https://gitee.com/api/v5/repos/$owner/$repo"
           # Re-running a version replaces its Gitee release, same as on GitHub.
           $list = Invoke-RestMethod -Uri "$api/releases?access_token=$env:GITEE_TOKEN&per_page=100" -Method Get
           $old = $list | Where-Object { $_.tag_name -eq $tag }
           if ($old) {
-            Invoke-RestMethod -Uri "$api/releases/$($old.id)?access_token=$env:GITEE_TOKEN" -Method Delete
+            Invoke-RestMethod -Uri "$api/releases/$($old.id)?access_token=$env:GITEE_TOKEN" -Method Delete | Out-Null
             Write-Host "Deleted previous Gitee release $tag."
           }
           $created = Invoke-RestMethod -Uri "$api/releases" -Method Post -Body @{
-            access_token    = $env:GITEE_TOKEN
-            tag_name        = $tag
-            name            = "键盘小黑猫 $tag"
-            body            = $notes
+            access_token     = $env:GITEE_TOKEN
+            tag_name         = $tag
+            name             = $title
+            body             = $notes
+            prerelease       = $false
             target_commitish = 'main'
           }
+          if (-not $created.id) { throw "Failed to create Gitee Release for $tag." }
           foreach ($file in @($exe, $installer)) {
-            $resp = curl.exe -s -F "access_token=$env:GITEE_TOKEN" -F "file=@$file" "$api/releases/$($created.id)/attach_files"
+            $resp = curl.exe -sS -f -F "access_token=$env:GITEE_TOKEN" -F "file=@$file" "$api/releases/$($created.id)/attach_files"
+            if ($LASTEXITCODE -ne 0) { throw "Failed to upload $file to Gitee release." }
             Write-Host "Uploaded $(Split-Path $file -Leaf): $resp"
           }
           Write-Host "Gitee release $tag published with both assets."

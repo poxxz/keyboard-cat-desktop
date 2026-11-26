@@ -3,12 +3,20 @@ using System.Globalization;
 using System.Windows;
 using System.Windows.Media;
 
+public enum PetZone { None, Head, Body }
+
 public struct CatMood
 {
     public double Sweat;
     public double Anger;
     public double Sleep;
     public double Crouch;
+    public double HappyPet;
+    public double Impatient;
+    public double PetNuzzleX;
+    public double PetNuzzleY;
+    public double ScruffLift;
+    public double DragSwing;
 }
 
 public static partial class CatArt
@@ -320,6 +328,251 @@ public static partial class CatArt
         }
         dc.DrawGeometry(null, SwatTrailOuter, outer);
         dc.DrawGeometry(null, SwatTrailInner, inner);
+        dc.Pop();
+    }
+
+    // --- Petting expressions, heart/star particles, and animated petting/grabbing hand ---
+    private static readonly Brush BlushBrush = BuildBlushBrush();
+    private static readonly Pen BlushHatch = Stroke(AlphaBrush(130, 236, 112, 130), 1.05);
+    private static readonly Geometry HeartShape = Shape(
+        "M 0,6.8 C -1.2,5.6 -7.6,1.2 -7.6,-2.7 C -7.6,-5.6 -5.3,-7.4 -2.8,-7.4 " +
+        "C -1.2,-7.4 -0.3,-6.5 0,-5.3 C 0.3,-6.5 1.2,-7.4 2.8,-7.4 " +
+        "C 5.3,-7.4 7.6,-5.6 7.6,-2.7 C 7.6,1.2 1.2,5.6 0,6.8 Z");
+    private static readonly Brush HeartFill = Wash(new byte[] { 255, 136, 166 }, new byte[] { 242, 78, 122 }, new Point(.25, 0), new Point(.75, 1));
+    private static readonly Pen ParticleWhiteHalo = Stroke(AlphaBrush(230, 255, 255, 255), 2.1);
+    private static readonly Pen HeartEdge = Stroke(Ink(198, 52, 92), .85);
+    private static readonly Geometry StarShape = Shape(
+        "M 0,-8.0 L 2.2,-2.6 L 8.0,-2.2 L 3.4,1.6 L 4.9,7.4 L 0,4.2 L -4.9,7.4 L -3.4,1.6 L -8.0,-2.2 L -2.2,-2.6 Z");
+    private static readonly Brush StarFill = Wash(new byte[] { 255, 238, 128 }, new byte[] { 248, 174, 34 }, new Point(.2, 0), new Point(.8, 1));
+    private static readonly Pen StarEdge = Stroke(Ink(194, 122, 16), .85);
+    private static readonly Brush ParticleGlint = AlphaBrush(225, 255, 255, 255);
+
+    private static readonly Geometry ImpatientPuff = Shape(
+        "M -6,2 C -9,2 -10.5,-1.5 -8.5,-4 C -7,-6 -3.5,-6 -2,-4 " +
+        "C -0.5,-7.5 4.5,-7.5 6.5,-4 C 9.5,-4 11,-0.5 9,2.5 C 8,4.5 5,5 3,4 " +
+        "C 1.2,6 -2.8,6 -4.5,4 C -5.5,4.2 -6.5,3.2 -6,2 Z");
+    private static readonly Brush ImpatientPuffFill = Wash(new byte[] { 255, 246, 236 }, new byte[] { 226, 212, 200 }, new Point(.2, 0), new Point(.8, 1));
+    private static readonly Pen ImpatientPuffEdge = Stroke(Ink(122, 92, 78), 1.45);
+    private static readonly Geometry ImpatientScribble = Shape("M -5,-2 Q -2,-6 1,-1 Q 4,4 7,-2 M -3,3 Q 1,-1 5,4");
+    private static readonly Pen ImpatientScribblePen = Stroke(Ink(196, 76, 62), 1.55);
+
+    private static readonly Brush HandFill = Wash(new byte[] { 255, 239, 219 }, new byte[] { 243, 206, 174 }, new Point(.2, 0), new Point(.85, 1));
+    private static readonly Pen HandHalo = Stroke(AlphaBrush(205, 255, 255, 255), 3.4);
+    private static readonly Pen HandEdge = Stroke(Ink(108, 76, 54), 1.45);
+    private static readonly Pen HandCrease = Stroke(AlphaBrush(155, 146, 104, 76), 1.0);
+    private static readonly Pen PetStrokeArc = Stroke(AlphaBrush(185, 255, 202, 88), 1.5);
+    private static readonly Pen HoldTrackPen = Stroke(AlphaBrush(195, 255, 251, 242), 3.6);
+    private static readonly Pen HoldArcPen = Stroke(Ink(242, 160, 24), 2.8);
+
+    // Open warm petting hand pointing gently down-left over the cat's fur.
+    private static readonly Geometry OpenHandShape = Shape(
+        "M -2,-11 C 0,-13 3.2,-12.5 3.6,-9.8 L 4.4,-3.8 " +
+        "C 5.2,-9.5 8.5,-9.8 9.0,-6.8 L 8.4,-1.0 " +
+        "C 10.2,-5.8 13.0,-5.2 12.6,-2.0 L 10.8,4.6 " +
+        "C 9.8,9.2 5.6,12.2 0.4,12.2 C -4.6,12.2 -8.2,9.2 -9.4,4.8 " +
+        "L -12.2,-0.8 C -13.4,-3.2 -11.4,-5.4 -9.2,-4.0 L -6.0,-1.4 " +
+        "L -6.6,-8.6 C -6.8,-11.2 -3.8,-12.0 -2,-11 Z");
+    private static readonly Geometry OpenHandLines = Shape("M -2.2,-1.5 L -1.8,4.2 M 2.5,-0.5 L 2.2,4.5 M 6.4,0.8 L 5.8,4.8");
+
+    // Compact curled grabbing hand while dragging the cat.
+    private static readonly Geometry GrabHandShape = Shape(
+        "M -7,-5.5 C -7,-8.6 -3.8,-9.5 -2.2,-7.6 C -1.2,-9.8 2.4,-9.8 3.2,-7.4 " +
+        "C 4.6,-9.2 7.8,-8.4 7.8,-5.4 L 7.6,2.2 C 7.6,7.4 4.2,10.6 -0.8,10.6 " +
+        "C -5.6,10.6 -9.0,7.2 -9.0,2.4 L -9.6,-1.6 C -9.8,-4.2 -8.2,-5.6 -7,-5.5 Z");
+    private static readonly Geometry GrabHandKnuckles = Shape("M -3.4,-4.2 L -3.2,0.5 M 0.6,-4.4 L 0.6,0.6 M 4.2,-3.8 L 4.0,0.6");
+
+    private static Brush BuildBlushBrush()
+    {
+        RadialGradientBrush b = new RadialGradientBrush();
+        b.GradientStops.Add(new GradientStop(Color.FromArgb(168, 255, 134, 152), 0));
+        b.GradientStops.Add(new GradientStop(Color.FromArgb(88, 255, 146, 162), .58));
+        b.GradientStops.Add(new GradientStop(Color.FromArgb(0, 255, 150, 166), 1));
+        b.Freeze();
+        return b;
+    }
+
+    // Happy upward-arching crescent eye (^ ^) during gentle petting.
+    internal static void DrawHappyEye(DrawingContext dc, double x, double y, double width, Pen lidPen)
+    {
+        StreamGeometry arc = new StreamGeometry();
+        using (StreamGeometryContext g = arc.Open())
+        {
+            g.BeginFigure(new Point(x - width * 0.82, y + 2.4), false, false);
+            g.QuadraticBezierTo(new Point(x, y - 6.2), new Point(x + width * 0.82, y + 2.4), true, true);
+        }
+        dc.DrawGeometry(null, lidPen, arc);
+    }
+
+    // Soft rosy cheek blush in head-local coordinates.
+    internal static void DrawBlush(DrawingContext dc, double intensity)
+    {
+        if (intensity <= .02) return;
+        dc.PushOpacity(Limit(intensity, 0, 1));
+        dc.DrawEllipse(BlushBrush, null, new Point(-28.5, -0.5), 11.5, 6.4);
+        dc.DrawEllipse(BlushBrush, null, new Point(28.5, -0.5), 11.5, 6.4);
+        dc.DrawLine(BlushHatch, new Point(-32.0, 0.8), new Point(-29.5, -2.0));
+        dc.DrawLine(BlushHatch, new Point(-27.2, 1.0), new Point(-24.8, -1.8));
+        dc.DrawLine(BlushHatch, new Point(24.8, 1.0), new Point(27.2, -1.8));
+        dc.DrawLine(BlushHatch, new Point(29.5, 0.8), new Point(32.0, -2.0));
+        dc.Pop();
+    }
+
+    // Comic impatient puff & agitated squiggle when petted too fast.
+    internal static void DrawImpatientMark(DrawingContext dc, double t, double intensity)
+    {
+        if (intensity <= .02) return;
+        double jitterX = Math.Sin(t * 28.0) * 1.4;
+        double jitterY = Math.Cos(t * 22.0) * 1.1;
+        double pulse = 1.12 + 0.14 * Math.Sin(t * 10.0);
+        dc.PushOpacity(Limit(intensity, 0, 1));
+        dc.PushTransform(new TranslateTransform(-48.0 + jitterX, -39.0 + jitterY));
+        dc.PushTransform(new ScaleTransform(pulse, pulse));
+        dc.DrawGeometry(ImpatientPuffFill, ImpatientPuffEdge, ImpatientPuff);
+        dc.DrawGeometry(null, ImpatientScribblePen, ImpatientScribble);
+        dc.Pop();
+        dc.Pop();
+        dc.Pop();
+    }
+
+    // Floating heart or twinkling star spawned while gently petting.
+    public static void DrawPetParticle(DrawingContext dc, bool isHeart, double x, double y, double scale, double rotDeg, double opacity)
+    {
+        if (opacity <= .01 || scale <= .05) return;
+        dc.PushOpacity(Limit(opacity, 0, 1));
+        dc.PushTransform(new TranslateTransform(x, y));
+        dc.PushTransform(new RotateTransform(rotDeg));
+        dc.PushTransform(new ScaleTransform(scale, scale));
+        if (isHeart)
+        {
+            dc.DrawGeometry(null, ParticleWhiteHalo, HeartShape);
+            dc.DrawGeometry(HeartFill, HeartEdge, HeartShape);
+            dc.DrawEllipse(ParticleGlint, null, new Point(-2.6, -3.4), 1.4, 0.9);
+        }
+        else
+        {
+            dc.DrawGeometry(null, ParticleWhiteHalo, StarShape);
+            dc.DrawGeometry(StarFill, StarEdge, StarShape);
+            dc.DrawEllipse(ParticleGlint, null, new Point(-1.2, -1.8), 1.2, 1.2);
+        }
+        dc.Pop();
+        dc.Pop();
+        dc.Pop();
+        dc.Pop();
+    }
+
+    // Animated vector petting hand cursor + 0.35s long-press amber progress ring + grab hand.
+    public static void DrawPettingHand(DrawingContext dc, Point pos, double strokeVelX, double phase,
+                                       double holdProgress, bool isDragging, bool isRubbing)
+    {
+        dc.PushTransform(new TranslateTransform(pos.X, pos.Y));
+
+        // Long-press drag charge ring around the cursor before dragging kicks in.
+        if (holdProgress > .03 && !isDragging)
+        {
+            double p = Limit(holdProgress, 0, 1);
+            const double r = 17.5;
+            dc.DrawEllipse(null, HoldTrackPen, new Point(0, 0), r, r);
+            double sweep = p * Math.PI * 2.0;
+            if (sweep >= Math.PI * 1.99)
+            {
+                dc.DrawEllipse(null, HoldArcPen, new Point(0, 0), r, r);
+            }
+            else
+            {
+                Point start = new Point(0, -r);
+                Point end = new Point(Math.Sin(sweep) * r, -Math.Cos(sweep) * r);
+                StreamGeometry arc = new StreamGeometry();
+                using (StreamGeometryContext g = arc.Open())
+                {
+                    g.BeginFigure(start, false, false);
+                    g.ArcTo(end, new Size(r, r), 0, sweep > Math.PI, SweepDirection.Clockwise, true, true);
+                }
+                dc.DrawGeometry(null, HoldArcPen, arc);
+            }
+        }
+
+        if (isDragging)
+        {
+            // Natural upper-right grip pinching the back of the cat's neck.
+            dc.PushTransform(new RotateTransform(24.0));
+            dc.PushTransform(new ScaleTransform(1.04, 1.04));
+            dc.DrawGeometry(null, HandHalo, GrabHandShape);
+            dc.DrawGeometry(HandFill, HandEdge, GrabHandShape);
+            dc.DrawGeometry(null, HandCrease, GrabHandKnuckles);
+            dc.Pop();
+            dc.Pop();
+        }
+        else
+        {
+            double tilt = -14.0 + Limit(strokeVelX / 360.0, -1, 1) * 16.0 + Math.Sin(phase) * (isRubbing ? 6.5 : 2.2);
+            double bob = Math.Sin(phase * 1.4) * (isRubbing ? 2.2 : 0.8);
+            double pressScale = holdProgress > .03 ? 1.0 - 0.08 * Limit(holdProgress, 0, 1) : 1.0;
+
+            if (isRubbing)
+            {
+                StreamGeometry w1 = new StreamGeometry();
+                using (StreamGeometryContext g = w1.Open())
+                {
+                    g.BeginFigure(new Point(-15, -4 + bob), false, false);
+                    g.QuadraticBezierTo(new Point(-18, 2 + bob), new Point(-14, 8 + bob), true, false);
+                }
+                StreamGeometry w2 = new StreamGeometry();
+                using (StreamGeometryContext g = w2.Open())
+                {
+                    g.BeginFigure(new Point(15, -3 + bob), false, false);
+                    g.QuadraticBezierTo(new Point(18, 3 + bob), new Point(14, 9 + bob), true, false);
+                }
+                dc.DrawGeometry(null, PetStrokeArc, w1);
+                dc.DrawGeometry(null, PetStrokeArc, w2);
+            }
+
+            dc.PushTransform(new TranslateTransform(0, bob));
+            dc.PushTransform(new RotateTransform(tilt));
+            dc.PushTransform(new ScaleTransform(pressScale, pressScale));
+            dc.DrawGeometry(null, HandHalo, OpenHandShape);
+            dc.DrawGeometry(HandFill, HandEdge, OpenHandShape);
+            dc.DrawGeometry(null, HandCrease, OpenHandLines);
+            dc.Pop();
+            dc.Pop();
+            dc.Pop();
+        }
+        dc.Pop();
+    }
+
+    // Soft organic nape-fur gather bridging back-of-head and upper shoulder when turned 3/4 sideways.
+    private static readonly Geometry ScruffNapeShape = Shape(
+        "M 224,96 C 234,94 246,96 250,103 C 253,109 249,120 242,128 L 222,126 Z");
+    private static readonly Pen DangleArcPen = Stroke(AlphaBrush(155, 232, 162, 54), 1.5);
+
+    internal static void DrawScruffNape(DrawingContext dc, Brush furBrush, double lift)
+    {
+        if (lift <= .03) return;
+        dc.PushOpacity(Limit(lift, 0, 1));
+        dc.DrawGeometry(furBrush, null, ScruffNapeShape);
+        dc.Pop();
+    }
+
+    // Subtle comic motion lines on the sides while the scruff-held cat dangles and swings.
+    public static void DrawDangleLines(DrawingContext dc, double lift, double swingDeg, double t)
+    {
+        if (lift <= .10) return;
+        double op = Limit(lift, 0, 1) * (0.35 + 0.65 * Limit(Math.Abs(swingDeg) / 7.0, 0, 1));
+        double bob = Math.Sin(t * 7.0) * 1.8;
+        dc.PushOpacity(op);
+        StreamGeometry l1 = new StreamGeometry();
+        using (StreamGeometryContext g = l1.Open())
+        {
+            g.BeginFigure(new Point(126, 128 + bob), false, false);
+            g.QuadraticBezierTo(new Point(119, 144 + bob), new Point(125, 160 + bob), true, false);
+        }
+        StreamGeometry r1 = new StreamGeometry();
+        using (StreamGeometryContext g = r1.Open())
+        {
+            g.BeginFigure(new Point(286, 128 - bob), false, false);
+            g.QuadraticBezierTo(new Point(293, 144 - bob), new Point(287, 160 - bob), true, false);
+        }
+        dc.DrawGeometry(null, DangleArcPen, l1);
+        dc.DrawGeometry(null, DangleArcPen, r1);
         dc.Pop();
     }
 }
