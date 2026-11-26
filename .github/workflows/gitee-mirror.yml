@@ -1,0 +1,31 @@
+name: Mirror to Gitee
+
+# Keeps the Gitee mirror's code in sync with GitHub on every push.
+# The Gitee repo is a straight mirror: nobody pushes to it directly.
+# Target: gitee.com/poxxz/keyboard-cat-desktop (same owner/repo as GitHub).
+# The only secret is GITEE_TOKEN (a Gitee personal access token,
+# stored in GitHub Secrets).
+
+on:
+  push:
+
+permissions:
+  contents: read
+
+jobs:
+  mirror:
+    runs-on: ubuntu-latest
+    steps:
+      - name: Clone a full mirror of this repo
+        run: git clone --mirror "https://github.com/${{ github.repository }}.git" mirror.git
+
+      - name: Push branches and tags to Gitee
+        env:
+          GITEE_TOKEN: ${{ secrets.GITEE_TOKEN }}
+        run: |
+          cd mirror.git
+          git remote add gitee "https://poxxz:${GITEE_TOKEN}@gitee.com/poxxz/keyboard-cat-desktop.git"
+          git push gitee --all
+          # Tags are force-pushed: the release workflow deletes and
+          # recreates a tag when a version is re-released.
+          git push gitee --tags --force
