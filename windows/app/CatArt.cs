@@ -383,26 +383,27 @@ public static partial class CatArt
     }
 
     public static PetZone ContainsCat(CatStyle style, Point pointer, double time,
-                                      double gazeX, double gazeY, Point leftPaw, double sleep)
+                                      double gazeX, double gazeY, Point leftPaw, double sleep, double margin = 0)
     {
         switch (style)
         {
             case CatStyle.PhotoTabby:
-                return TabbyArt.ContainsCat(pointer, time, gazeX, gazeY, leftPaw, sleep);
+                return TabbyArt.ContainsCat(pointer, time, gazeX, gazeY, leftPaw, sleep, margin);
             case CatStyle.JapaneseBobtail:
-                return BobtailArt.ContainsCat(pointer, time, gazeX, gazeY, leftPaw, sleep);
+                return BobtailArt.ContainsCat(pointer, time, gazeX, gazeY, leftPaw, sleep, margin);
             default:
                 double s = Limit(sleep, 0, 1);
+                double pad = Math.Max(0, margin);
                 double highLeft = Smooth((195 - leftPaw.Y) / 45);
                 double lean = Smooth((157 - leftPaw.X) / 50) * (1 - s) * (1 - highLeft);
                 double hx = 214 - 36.8 * lean + Limit(gazeX, -1, 1) * 3.2 * (1 - s) - 2.0 * s;
                 double hy = 86 + (180 - 86) * s;
-                if (Math.Pow((pointer.X - hx) / 60.0, 2) + Math.Pow((pointer.Y - hy) / 52.0, 2) < 1.0)
+                if (Math.Pow((pointer.X - hx) / (60.0 + pad), 2) + Math.Pow((pointer.Y - hy) / (52.0 + pad * 0.9), 2) < 1.0)
                     return PetZone.Head;
                 double bx = 214 - 16.0 * lean;
                 double by = 172 + 26.0 * s;
-                double brx = 58.0;
-                double bry = 66.0 - 22.0 * s;
+                double brx = 58.0 + pad;
+                double bry = (66.0 - 22.0 * s) + pad * 0.85;
                 if (Math.Pow((pointer.X - bx) / brx, 2) + Math.Pow((pointer.Y - by) / bry, 2) < 1.0)
                     return PetZone.Body;
                 return PetZone.None;

@@ -372,11 +372,11 @@ internal static class CustomSkinArt
         return p;
     }
 
-    public static PetZone ContainsCat(CompiledSkin skin, Point pointer, double time, double gazeX, double gazeY, Point leftPaw, double sleep)
+    public static PetZone ContainsCat(CompiledSkin skin, Point pointer, double time, double gazeX, double gazeY, Point leftPaw, double sleep, double margin = 0)
     {
         if (skin != null && skin.Data.BodyBase == SkinBodyBase.FluffyLong)
-            return TabbyArt.ContainsCat(pointer, time, gazeX, gazeY, leftPaw, sleep);
-        return CatArt.ContainsCat(CatStyle.Wednesday, pointer, time, gazeX, gazeY, leftPaw, sleep);
+            return TabbyArt.ContainsCat(pointer, time, gazeX, gazeY, leftPaw, sleep, margin);
+        return CatArt.ContainsCat(CatStyle.Wednesday, pointer, time, gazeX, gazeY, leftPaw, sleep, margin);
     }
 
     public static void DrawPortrait(DrawingContext dc, CompiledSkin skin)

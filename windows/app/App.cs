@@ -59,7 +59,7 @@ internal sealed class PetWindow : Window
     private Drawing.Rectangle cursorMonitor;
     private bool listening, menuOpen, disposed;
     private bool holdingForDrag, dragging;
-    private double pressStartAt;
+    private double pressStartAt, lastPetMouseOverAt = -10;
     private Point pressStartDip;
     private Point? dragStart;
     private Point dragOrigin;
@@ -269,7 +269,9 @@ internal sealed class PetWindow : Window
             EndDrag(false);
         }
 
-        bool allowHand = !settings.ClickThrough && IsVisible && (IsMouseOver || dragging || holdingForDrag);
+        if (IsMouseOver) lastPetMouseOverAt = now;
+        bool petGrace = cat.CurrentPetZone != PetZone.None && (now - lastPetMouseOverAt) < 0.08;
+        bool allowHand = !settings.ClickThrough && IsVisible && (IsMouseOver || dragging || holdingForDrag || petGrace);
         cat.SetDragVisual(allowHand, dragging ? 1.0 : holdProgress, dragging);
 
         if (WindowsInput.GetCursorPos(out screen))

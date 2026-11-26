@@ -61,6 +61,14 @@ internal sealed class CatScene : FrameworkElement
     public GamepadStyle Gamepad = GamepadStyle.Xbox;
     public GamepadMode GamepadMode = GamepadMode.Auto;
     public const double CanvasWidth = 480, CanvasHeight = 320;
+    private const double PetHysteresisMargin = 38.0;
+    private static readonly Brush PetHitShieldBrush = CreatePetHitShieldBrush();
+    private static Brush CreatePetHitShieldBrush()
+    {
+        SolidColorBrush b = new SolidColorBrush(Color.FromArgb(1, 0, 0, 0));
+        b.Freeze();
+        return b;
+    }
 
     public PetZone CurrentPetZone { get { return petZone; } }
     public bool IsPetHandVisible
@@ -332,10 +340,11 @@ internal sealed class CatScene : FrameworkElement
         }
         monitorPosition = positionOnMonitor;
 
+        double hitMargin = (petZone != PetZone.None && !InPasswordMode && !dragActive) ? PetHysteresisMargin : 0.0;
         PetZone zone = allowPetHand
             ? (CustomSkin != null
-                ? CustomSkinArt.ContainsCat(CustomSkin, p, time, gazeX, gazeY, left, sleepBlend)
-                : CatArt.ContainsCat(Cat, p, time, gazeX, gazeY, left, sleepBlend))
+                ? CustomSkinArt.ContainsCat(CustomSkin, p, time, gazeX, gazeY, left, sleepBlend, hitMargin)
+                : CatArt.ContainsCat(Cat, p, time, gazeX, gazeY, left, sleepBlend, hitMargin))
             : PetZone.None;
 
         if (zone != PetZone.None && !InPasswordMode && !dragActive)
@@ -935,6 +944,24 @@ internal sealed class CatScene : FrameworkElement
     protected override void OnRender(DrawingContext dc)
     {
         dc.PushTransform(new ScaleTransform(ActualWidth / CanvasWidth, ActualHeight / CanvasHeight));
+
+        // While actively petting, paint an invisible (alpha=1) hit-test halo matching the expanded
+        // hysteresis zone so transparent margins around the ears/cheeks stay hoverable without
+        // flickering back to the OS arrow cursor; once the user moves away, the shield vanishes.
+        if (allowPetHand && petZone != PetZone.None && !InPasswordMode && !dragActive)
+        {
+            double s = Clamp(sleepBlend, 0, 1);
+            double highLeft = Smooth((195 - left.Y) / 45);
+            double lean = Smooth((157 - left.X) / 50) * (1 - s) * (1 - highLeft);
+            double shieldPad = PetHysteresisMargin + 6.0;
+            double hx = 214 - 36.8 * lean + Clamp(gazeX, -1, 1) * 3.2 * (1 - s) - 2.0 * s;
+            double hy = 86 + (180 - 86) * s;
+            dc.DrawEllipse(PetHitShieldBrush, null, new Point(hx, hy), 60.0 + shieldPad, 52.0 + shieldPad * 0.9);
+            double bx = 214 - 16.0 * lean;
+            double by = 172 + 26.0 * s;
+            dc.DrawEllipse(PetHitShieldBrush, null, new Point(bx, by), 60.0 + shieldPad, (66.0 - 20.0 * s) + shieldPad * 0.85);
+        }
+
         double lift = Smooth(dragLiftBlend);
         CatMood mood = new CatMood
         {

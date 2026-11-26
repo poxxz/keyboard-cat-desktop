@@ -255,11 +255,12 @@ internal static class BobtailArt
         return ContainsCat(pointer, time, gazeX, gazeY, leftPaw, 0) == PetZone.Head;
     }
 
-    public static PetZone ContainsCat(Point pointer, double time, double gazeX, double gazeY, Point leftPaw, double sleep)
+    public static PetZone ContainsCat(Point pointer, double time, double gazeX, double gazeY, Point leftPaw, double sleep, double margin = 0)
     {
         double s = Math.Max(0, Math.Min(1, sleep));
+        double pad = Math.Max(0, margin);
         double lean = Lean(leftPaw) * (1 - s);
-        if (s < 0.3)
+        if (s < 0.3 && pad <= 0.01)
         {
             Matrix pose = HeadPose(time, gazeX, gazeY, lean);
             pose.Invert();
@@ -267,14 +268,14 @@ internal static class BobtailArt
         }
         else
         {
-            double hx = 214 - 32.8 * lean - 2.0 * s;
-            double hy = BodyTop - 2 + (186 - (BodyTop - 2)) * s;
-            if (Math.Pow((pointer.X - hx) / 56.0, 2) + Math.Pow((pointer.Y - hy) / 48.0, 2) < 1.0)
+            double hx = 214 - 32.8 * lean + (s < 0.3 ? 2.5 * gazeX : -2.0 * s);
+            double hy = BodyTop - 2 + (186 - (BodyTop - 2)) * s + (s < 0.3 ? 2.0 * gazeY : 0);
+            if (Math.Pow((pointer.X - hx) / (56.0 + pad), 2) + Math.Pow((pointer.Y - hy) / (48.0 + pad * 0.9), 2) < 1.0)
                 return PetZone.Head;
         }
         double bx = 214 - 14.0 * lean;
         double by = 176 + 24.0 * s;
-        if (Math.Pow((pointer.X - bx) / 58.0, 2) + Math.Pow((pointer.Y - by) / (64.0 - 20.0 * s), 2) < 1.0)
+        if (Math.Pow((pointer.X - bx) / (58.0 + pad), 2) + Math.Pow((pointer.Y - by) / ((64.0 - 20.0 * s) + pad * 0.85), 2) < 1.0)
             return PetZone.Body;
         return PetZone.None;
     }
