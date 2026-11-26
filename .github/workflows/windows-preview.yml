@@ -62,17 +62,17 @@ jobs:
             }
           }
 
-          $notes = @"
-基于 v1.7.3 构建的 **PNG 贴图进阶皮肤工坊** 测试预览版（分支 ``feat/skin-workshop-png``，提交 ``$shortSha``）。
-
-### 下载说明
-- **KeyboardCat-PNGWorkshop-Preview.exe**：免安装测试版，直接双击运行即可体验（推荐用于方案对比，不影响现有 1.7.3 安装）。
-- **KeyboardCat-PNGWorkshop-Preview-Setup.exe**：Windows 安装包。
-
-### 体验方式
-1. 右键桌面小猫或点击右下角托盘图标，在「外观装扮 → 皮肤工坊 (PNG) →」或托盘菜单「皮肤工坊 (PNG 贴图)…」打开工坊。
-2. 支持 8 层独立 PNG 槽位（常态头 / 闭眼头 / 生气头 / 身体 / 尾巴 / 左爪 / 右爪 / 头饰挂件）、直接拖入 PNG、预览区拖拽定位与滚轮缩放、8 种动画测试、一键生成示例头饰 PNG、一键提取底模 PNG、导出 4x 绘画模板，以及 ``.kcat`` 皮肤包导入/导出。
-"@
+          $notes = @(
+            "基于 v1.7.3 构建的 **PNG 贴图进阶皮肤工坊** 测试预览版（分支 ``feat/skin-workshop-png``，提交 ``$shortSha``）。",
+            "",
+            "### 下载说明",
+            "- **KeyboardCat-PNGWorkshop-Preview.exe**：免安装测试版，直接双击运行即可体验（推荐用于方案对比，不影响现有 1.7.3 安装）。",
+            "- **KeyboardCat-PNGWorkshop-Preview-Setup.exe**：Windows 安装包。",
+            "",
+            "### 体验方式",
+            "1. 右键桌面小猫或点击右下角托盘图标，在「外观装扮 → 皮肤工坊 (PNG) →」或托盘菜单「皮肤工坊 (PNG 贴图)…」打开工坊。",
+            "2. 支持 8 层独立 PNG 槽位（常态头 / 闭眼头 / 生气头 / 身体 / 尾巴 / 左爪 / 右爪 / 头饰挂件）、直接拖入 PNG、预览区拖拽定位与滚轮缩放、8 种动画测试、一键生成示例头饰 PNG、一键提取底模 PNG、导出 4x 绘画模板，以及 ``.kcat`` 皮肤包导入/导出。"
+          ) -join "`n"
 
           $created = $false
           for ($attempt = 1; $attempt -le 4; $attempt++) {
