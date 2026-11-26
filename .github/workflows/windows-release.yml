@@ -58,7 +58,7 @@ jobs:
             gh release delete $tag --yes --cleanup-tag
             Start-Sleep -Seconds 3
           }
-          $notes = "Windows 构建（$title），含 KeyboardCat.exe（免安装版）与安装包。本版更新：1) 更新源切至 Gitee 优先（自动回退 GitHub），新增每次启动后台检测更新（托盘气泡 + 设置页红点，可关闭）；2) 全新纯矢量「皮肤工坊」，内置英短蓝猫/蓝白/美短/布偶/折耳等 4 大底模、11 种脸纹、6 种胸腹、6 种身纹、5 种前爪、6 种尾型与异瞳/配饰，支持 .catskin 导出导入分享，默认首选「星期三」；3) 新增悬停动画抚摸小手（轻揉开心冒爱心星星，揉太快不耐烦）与长按 0.35s 侧身自然提起并紧抱键鼠拖动；4) 右键猫咪直接从猫咪当前位置旁打开设置窗口。"
+          $notes = "Windows 构建（$title），含 KeyboardCat.exe（免安装版）与安装包。本版更新：1) 更新源切至 Gitee 优先（自动回退 GitHub），新增每次启动后台检测更新（托盘气泡 + 设置页红点，可关闭）；2) 全新纯矢量「皮肤工坊」，内置英短蓝猫/蓝白/美短/布偶/折耳等 4 大底模、11 种脸纹、6 种胸腹、6 种身纹、5 种前爪、6 种尾型、异瞳与配饰，支持实时 HSV 色盘调色、一键重置与 .catskin 导出导入分享，默认首选「星期三」；3) 新增悬停动画抚摸小手（轻揉开心冒爱心星星、揉太快不耐烦、进入抚摸自动扩大防抖动判定范围）与长按 0.2s 侧身自然提起并紧抱键鼠拖动；4) 右键猫咪直接从猫咪当前位置旁打开设置窗口。"
           $extraArgs = @()
           if (-not $isOfficial) {
             $extraArgs += '--prerelease'
@@ -103,7 +103,7 @@ jobs:
           $title = if ($version.FilePrivatePart -gt 0) { "键盘小黑猫 v$baseVer v$($version.FilePrivatePart)" } else { "键盘小黑猫 v$baseVer" }
           $exeEn = Join-Path (Split-Path $exe) 'KeyboardCat.exe'
           $installerEn = Join-Path (Split-Path $exe) "KeyboardCat-$baseVer-Windows-Setup.exe"
-          $notes = "Windows 正式构建（$title），含 KeyboardCat.exe（免安装版）与安装包。支持国内 Gitee 更新检测、纯矢量皮肤工坊与抚摸互动/长按拖动。"
+          $notes = "Windows 正式构建（$title），含 KeyboardCat.exe（免安装版）与安装包。更新内容：Gitee 优先更新检测与启动自动检查、全新纯矢量皮肤工坊（含 HSV 色盘与 .catskin 分享）、动画抚摸互动（防抖动扩大判定）与长按 0.2s 侧身提起拖动。"
 
           # Ensure branch and tag exist on Gitee before creating the Gitee Release.
           git tag -f $tag HEAD
