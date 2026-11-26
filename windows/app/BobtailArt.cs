@@ -302,13 +302,16 @@ internal static class BobtailArt
         dc.Pop();
         dc.Pop();
 
-        dc.PushTransform(new MatrixTransform(1,0,.285*lean,1,-233*.285*lean,0));
+        double torsoShear = 0.285 * lean - 0.12 * lift;
+        double torsoOffset = -233 * 0.285 * lean + 108 * 0.12 * lift;
+        dc.PushTransform(new MatrixTransform(1, 0, torsoShear, 1, torsoOffset, 0));
         dc.PushTransform(new TranslateTransform(214,BodyTop + bodyYShift));
         dc.PushTransform(new ScaleTransform(BodyWidth * sxScale, syScale));
         dc.DrawDrawing(BodyCoat);
         dc.Pop();
         dc.Pop();
         dc.Pop();
+        if (lift > .02) CatArt.DrawScruffNape(dc, Paw, lift);
         // Same layering as the base cat: a caller-supplied layer (the
         // gamepad or hugged keyboard & mouse) goes between the torso and the forelegs.
         if (between != null) between(dc);
@@ -324,18 +327,18 @@ internal static class BobtailArt
         double nuzzleX = mood.PetNuzzleX * 4.5 * happy;
         double nuzzleY = mood.PetNuzzleY * 2.5 * happy - 1.5 * happy + 2.2 * impatient;
         double shakeX = impatient > 0.02 ? Math.Sin(time * 26.0) * 1.9 * impatient : 0;
-        double hx = 214 - 32.8*lean + 2.5*gazeX*(1 - sleep) - 2.0*sleep + nuzzleX + shakeX;
-        double hyNorm = BodyTop - 2 + 2*gazeY + Math.Sin(time*breathFreq)*breathAmp + 12.0*crouch + nuzzleY + 4.0*lift;
+        double hx = 214 - 32.8*lean + 2.5*gazeX*(1 - sleep) - 2.0*sleep + nuzzleX + shakeX - 9.5*lift;
+        double hyNorm = BodyTop - 2 + 2*gazeY + Math.Sin(time*breathFreq)*breathAmp + 12.0*crouch + nuzzleY + 4.5*lift;
         double hy = hyNorm + (186 + Math.Sin(time*1.15)*1.8 - hyNorm)*sleep;
-        double rot = (3.2 + 2.8*gazeX - 2.4*lean + mood.PetNuzzleX * 6.5 * happy + Math.Sin(time * 5.2) * 2.6 * happy + Math.Sin(time * 22.0) * 2.8 * impatient)*(1 - sleep)*(1 - lift) - 8.5*sleep - mood.DragSwing * 0.18 * lift;
+        double rot = (3.2 + 2.8*gazeX - 2.4*lean + mood.PetNuzzleX * 6.5 * happy + Math.Sin(time * 5.2) * 2.6 * happy + Math.Sin(time * 22.0) * 2.8 * impatient)*(1 - sleep)*(1 - lift)
+            - 8.5*sleep - 10.5*lift - mood.DragSwing * 0.15 * lift;
         double browAnger = Math.Max(mood.Anger, impatient * 0.92) * (1 - lift);
-        double eyeBoost = Math.Max(crouch, lift * 0.72);
+        double eyeBoost = Math.Max(crouch, lift * 0.55);
         dc.PushTransform(new TranslateTransform(hx, hy));
         dc.PushTransform(new RotateTransform(rot));
-        dc.PushTransform(new ScaleTransform(.95 * (1.0 + 0.02 * lift), .99 * (1.0 - 0.03 * lift)));
-        if (lift > .02) CatArt.DrawScruffPinch(dc, Paw, lift);
+        dc.PushTransform(new ScaleTransform(.95, .99));
         DrawHead(dc,gazeX,gazeY,blink,browAnger,angerBreath,eyeBoost,happy);
-        double blushAmt = Math.Max(happy, lift * 0.42);
+        double blushAmt = Math.Max(happy, lift * 0.38);
         if (blushAmt > .05) CatArt.DrawBlush(dc, blushAmt);
         if (mood.Sweat > .01) CatArt.DrawSweat(dc, time, mood.Sweat);
         if (mood.Anger > .01 && lift < .5) CatArt.DrawAnger(dc, time, mood.Anger);

@@ -423,10 +423,12 @@ internal static class CustomSkinArt
         DrawTail(dc, skin, fluffy, t, mood, happy, impatient, sleep, crouch, lift);
 
         // 2. Torso
+        double torsoShear = lean * 0.282 - lift * 0.13;
+        double torsoOffset = -233 * lean * 0.282 + 108 * lift * 0.13;
         if (fluffy)
         {
             double bodyYShift = (1.0 - syScale) * (235.0 - TabbyArt.BodyTop);
-            dc.PushTransform(new MatrixTransform(1, 0, .285 * lean, 1, -233 * .285 * lean, 0));
+            dc.PushTransform(new MatrixTransform(1, 0, torsoShear, 1, torsoOffset, 0));
             dc.PushTransform(new TranslateTransform(214, TabbyArt.BodyTop + bodyYShift));
             dc.PushTransform(new ScaleTransform(TabbyArt.BodyWidth * sxScale, TabbyArt.BodyHeight * syScale));
             dc.DrawGeometry(skin.HeadFur, null, TabbyArt.Body);
@@ -437,7 +439,7 @@ internal static class CustomSkinArt
         }
         else
         {
-            dc.PushTransform(new MatrixTransform(1, 0, lean * 0.282, 1, -233 * lean * 0.282, 0));
+            dc.PushTransform(new MatrixTransform(1, 0, torsoShear, 1, torsoOffset, 0));
             dc.PushTransform(new TranslateTransform(214, 235));
             dc.PushTransform(new ScaleTransform(sxScale, syScale));
             dc.PushTransform(new TranslateTransform(-214, -235));
@@ -455,6 +457,7 @@ internal static class CustomSkinArt
                 dc.Pop();
             }
         }
+        if (lift > .02) CatArt.DrawScruffNape(dc, fluffy ? skin.HeadFur : skin.BodyFur, lift);
 
         // 3. Optional mid-layer (gamepad or hugged keyboard & mouse during drag)
         if (between != null) between(dc);
@@ -467,7 +470,7 @@ internal static class CustomSkinArt
         if (fluffy && (skin.Data.BellyStyle == SkinBellyStyle.Ruff || skin.Data.BellyStyle == SkinBellyStyle.FullBelly))
         {
             double bodyYShift = (1.0 - syScale) * (235.0 - TabbyArt.BodyTop);
-            dc.PushTransform(new MatrixTransform(1, 0, .285 * lean, 1, -233 * .285 * lean, 0));
+            dc.PushTransform(new MatrixTransform(1, 0, torsoShear, 1, torsoOffset, 0));
             dc.PushTransform(new TranslateTransform(214, TabbyArt.BodyTop + bodyYShift));
             dc.PushTransform(new ScaleTransform(TabbyArt.BodyWidth * sxScale * (1.0 - 0.22 * sleep), TabbyArt.BodyHeight * syScale));
             dc.DrawGeometry(skin.BellyBrush, null, TabbyArt.Ruff);
@@ -480,22 +483,20 @@ internal static class CustomSkinArt
         double nuzzleX = mood.PetNuzzleX * 4.5 * happy;
         double nuzzleY = mood.PetNuzzleY * 2.5 * happy - 1.5 * happy + 2.2 * impatient;
         double shakeX = impatient > 0.02 ? Math.Sin(t * 26.0) * 1.9 * impatient : 0;
-        double hx = 214 - (fluffy ? 33.5 : 36.8) * lean + gx * 3.2 * (1 - sleep) - 2.0 * sleep + nuzzleX + shakeX;
-        double hyNorm = (fluffy ? TabbyArt.BodyTop - 2 : 86) + breath + gy * 2.0 + lean * 1.4 + 12.0 * crouch + nuzzleY + 4.5 * lift;
+        double hx = 214 - (fluffy ? 33.5 : 36.8) * lean + gx * 3.2 * (1 - sleep) - 2.0 * sleep + nuzzleX + shakeX - 9.5 * lift;
+        double hyNorm = (fluffy ? TabbyArt.BodyTop - 2 : 86) + breath + gy * 2.0 + lean * 1.4 + 12.0 * crouch + nuzzleY + 5.0 * lift;
         double hy = hyNorm + ((fluffy ? 186 : 180) + breath - hyNorm) * sleep;
         double hrot = (gx * 2.8 - lean * 2.4 + mood.PetNuzzleX * 6.5 * happy + Math.Sin(t * 5.2) * 2.6 * happy + Math.Sin(t * 22.0) * 2.8 * impatient) * (1 - sleep) * (1 - lift)
-            - 8.5 * sleep - mood.DragSwing * 0.18 * lift;
+            - 8.5 * sleep - 10.5 * lift - mood.DragSwing * 0.15 * lift;
         double browAnger = Math.Max(mood.Anger, impatient * 0.92) * (1 - lift);
-        double eyeBoost = Math.Max(crouch, lift * 0.72);
-        double headScaleX = (fluffy ? 1.04 : (chubby ? 1.04 : 1.0)) * (1.0 + 0.025 * lift);
-        double headScaleY = 1.0 - 0.035 * lift;
+        double eyeBoost = Math.Max(crouch, lift * 0.55);
+        double headScaleX = fluffy ? 1.04 : (chubby ? 1.04 : 1.0);
 
         dc.PushTransform(new TranslateTransform(hx, hy));
         dc.PushTransform(new RotateTransform(hrot));
-        dc.PushTransform(new ScaleTransform(headScaleX, headScaleY));
-        if (lift > .02) CatArt.DrawScruffPinch(dc, skin.HeadFur, lift);
+        dc.PushTransform(new ScaleTransform(headScaleX, 1.0));
         DrawHead(dc, skin, gx, gy, blink, browAnger, angerBreath, eyeBoost, happy);
-        double blushAmt = Math.Max(happy, lift * 0.42);
+        double blushAmt = Math.Max(happy, lift * 0.38);
         if (blushAmt > .05) CatArt.DrawBlush(dc, blushAmt);
         if (mood.Sweat > .01) CatArt.DrawSweat(dc, t, mood.Sweat);
         if (mood.Anger > .01 && lift < .5) CatArt.DrawAnger(dc, t, mood.Anger);

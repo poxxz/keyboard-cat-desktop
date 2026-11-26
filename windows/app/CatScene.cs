@@ -708,20 +708,20 @@ internal sealed class CatScene : FrameworkElement
             double hug = Smooth(dragLiftBlend);
             if (showingGamepad)
             {
-                left = Mix(left, new Point(185, 166), hug);
-                right = Mix(right, new Point(243, 166), hug);
+                left = Mix(left, new Point(176, 168), hug);
+                right = Mix(right, new Point(234, 170), hug);
             }
             else
             {
-                // Left paw clutches the tucked-in mouse & left edge of keyboard; right paw wraps the right side of keyboard.
-                left = Mix(left, new Point(168, 194), hug);
-                right = Mix(right, new Point(256, 202), hug);
+                // Side-turned hug: left paw clutches tucked mouse & left edge of keyboard; right paw wraps across keyboard.
+                left = Mix(left, new Point(156, 194), hug);
+                right = Mix(right, new Point(242, 204), hug);
             }
             leftActivity = Math.Max(leftActivity, 0.30 * hug);
             rightActivity = Math.Max(rightActivity, 0.30 * hug);
-            double liftGazeX = Clamp(-dragSwingDeg / 16.0, -0.35, 0.35);
-            gazeX += (liftGazeX - gazeX) * Math.Min(1, hug * 0.65);
-            gazeY += (-0.42 - gazeY) * Math.Min(1, hug * 0.65);
+            double liftGazeX = Clamp(-0.68 - dragSwingDeg / 26.0, -0.88, -0.35);
+            gazeX += (liftGazeX - gazeX) * Math.Min(1, hug * 0.72);
+            gazeY += (-0.22 - gazeY) * Math.Min(1, hug * 0.72);
         }
 
         for (int i = caps.Count - 1; i >= 0; i--)
@@ -954,19 +954,19 @@ internal sealed class CatScene : FrameworkElement
         if (lifted)
         {
             dc.PushTransform(new TranslateTransform(0, -6.0 * lift));
-            dc.PushTransform(new RotateTransform(dragSwingDeg, 214, 28));
+            dc.PushTransform(new RotateTransform(dragSwingDeg, 246, 102));
         }
 
         if (showingGamepad)
         {
-            double padDrop = 26.0 * sleepBlend * (1 - lift) - 22.0 * lift;
+            double padDrop = 26.0 * sleepBlend * (1 - lift) - 20.0 * lift;
             DrawActiveCat(dc, lifted ? 0.45 : 0.25,
                 delegate(DrawingContext g)
                 {
                     if (Math.Abs(padDrop) > .01 || lifted)
                     {
-                        g.PushTransform(new TranslateTransform(0, padDrop));
-                        if (lifted) g.PushTransform(new RotateTransform(-5.0 * lift, 214, 175));
+                        g.PushTransform(new TranslateTransform(-9.0 * lift, padDrop));
+                        if (lifted) g.PushTransform(new RotateTransform(-8.0 * lift, 214, 175));
                     }
                     GamepadArt.Draw(g, Gamepad, pad);
                     if (Math.Abs(padDrop) > .01 || lifted)
@@ -989,14 +989,14 @@ internal sealed class CatScene : FrameworkElement
             }
             else
             {
-                // While lifted by the scruff, draw keyboard & mouse in the `between` layer
+                // While lifted by the side-turned nape, draw keyboard & mouse in the `between` layer
                 // (in front of the torso, behind the forelegs) so both paws visibly hug them!
                 DrawActiveCat(dc, 0.55 * lift,
                     delegate(DrawingContext g)
                     {
-                        // Hugged keyboard lifted up snugly against the cat's tummy
-                        g.PushTransform(new TranslateTransform(-8.0 * lift, -62.0 * lift));
-                        g.PushTransform(new RotateTransform(-7.0 * lift, 228, 262));
+                        // Hugged keyboard nestled into the 3/4 side-turned tummy
+                        g.PushTransform(new TranslateTransform(-18.0 * lift, -60.0 * lift));
+                        g.PushTransform(new RotateTransform(-10.0 * lift, 228, 262));
                         g.PushTransform(new ScaleTransform(1.0 - 0.24 * lift, 1.0 - 0.14 * lift, 228, 262));
                         DeskArt.DrawKeyboard(g, Keyboard, InPasswordMode ? null : highlights);
                         g.Pop();
@@ -1004,8 +1004,8 @@ internal sealed class CatScene : FrameworkElement
                         g.Pop();
 
                         // Hugged mouse pulled inward under the cat's left arm next to the keyboard
-                        g.PushTransform(new TranslateTransform(50.0 * lift + mouseOffset.X * (1 - lift), -84.0 * lift + mouseOffset.Y * (1 - lift)));
-                        g.PushTransform(new RotateTransform(16.0 * lift, MouseArt.Center.X, MouseArt.Center.Y));
+                        g.PushTransform(new TranslateTransform(42.0 * lift + mouseOffset.X * (1 - lift), -83.0 * lift + mouseOffset.Y * (1 - lift)));
+                        g.PushTransform(new RotateTransform(14.0 * lift, MouseArt.Center.X, MouseArt.Center.Y));
                         g.PushTransform(new ScaleTransform(1.0 - 0.08 * lift, 1.0 - 0.08 * lift, MouseArt.Center.X, MouseArt.Center.Y));
                         MouseArt.Draw(g, Mouse, lGlow, rGlow);
                         g.Pop();
@@ -1057,9 +1057,9 @@ internal sealed class CatScene : FrameworkElement
         if (IsPetHandVisible)
         {
             bool rubbing = petRubHold > 0.01 && petZone != PetZone.None && !dragActive && !lifted;
-            Point scruffAnchor = new Point(214, 24 - 6.0 * lift);
+            Point napeAnchor = new Point(252, 96 - 6.0 * lift);
             Point handPos = lifted
-                ? Mix(pointerKnown ? pointer : scruffAnchor, scruffAnchor, lift)
+                ? Mix(pointerKnown ? pointer : napeAnchor, napeAnchor, lift)
                 : pointer;
             CatArt.DrawPettingHand(dc, handPos, petVelX, petHandPhase, dragHoldProgress, dragActive || lift > 0.35, rubbing);
         }
