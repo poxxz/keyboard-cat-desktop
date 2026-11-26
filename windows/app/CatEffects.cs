@@ -15,6 +15,8 @@ public struct CatMood
     public double Impatient;
     public double PetNuzzleX;
     public double PetNuzzleY;
+    public double ScruffLift;
+    public double DragSwing;
 }
 
 public static partial class CatArt
@@ -491,8 +493,24 @@ public static partial class CatArt
 
         if (isDragging)
         {
-            dc.PushTransform(new RotateTransform(-10.0));
-            dc.PushTransform(new ScaleTransform(1.04, 1.04));
+            // Subtle pinch tension lines flanking the scruff-grabbing fingers.
+            StreamGeometry p1 = new StreamGeometry();
+            using (StreamGeometryContext g = p1.Open())
+            {
+                g.BeginFigure(new Point(-13.5, -2.0), false, false);
+                g.QuadraticBezierTo(new Point(-16.5, 2.5), new Point(-13.0, 7.0), true, false);
+            }
+            StreamGeometry p2 = new StreamGeometry();
+            using (StreamGeometryContext g = p2.Open())
+            {
+                g.BeginFigure(new Point(13.5, -2.0), false, false);
+                g.QuadraticBezierTo(new Point(16.5, 2.5), new Point(13.0, 7.0), true, false);
+            }
+            dc.DrawGeometry(null, PetStrokeArc, p1);
+            dc.DrawGeometry(null, PetStrokeArc, p2);
+
+            dc.PushTransform(new RotateTransform(-4.0));
+            dc.PushTransform(new ScaleTransform(1.06, 1.06));
             dc.DrawGeometry(null, HandHalo, GrabHandShape);
             dc.DrawGeometry(HandFill, HandEdge, GrabHandShape);
             dc.DrawGeometry(null, HandCrease, GrabHandKnuckles);
@@ -533,6 +551,50 @@ public static partial class CatArt
             dc.Pop();
             dc.Pop();
         }
+        dc.Pop();
+    }
+
+    private static readonly Geometry ScruffTuftShape = Shape(
+        "M -15,-38 C -10,-48 -6,-58 -2,-63 Q 0,-66 2,-63 C 6,-58 10,-48 15,-38 Z");
+    private static readonly Geometry ScruffCreaseShape = Shape(
+        "M -5.5,-45 Q -2,-53 0,-58 M 5.5,-45 Q 2,-53 0,-58");
+    private static readonly Pen ScruffCreasePen = Stroke(AlphaBrush(110, 255, 255, 255), 1.15);
+    private static readonly Pen DangleArcPen = Stroke(AlphaBrush(170, 232, 162, 54), 1.6);
+
+    // Gathered scruff-of-neck fur tuft pulled up behind the head while being carried.
+    internal static void DrawScruffPinch(DrawingContext dc, Brush furBrush, double lift)
+    {
+        if (lift <= .03) return;
+        double s = Limit(lift, 0, 1);
+        dc.PushOpacity(s);
+        dc.PushTransform(new ScaleTransform(1.0, 0.72 + 0.34 * s, 0, -40));
+        dc.DrawGeometry(furBrush, null, ScruffTuftShape);
+        dc.DrawGeometry(null, ScruffCreasePen, ScruffCreaseShape);
+        dc.Pop();
+        dc.Pop();
+    }
+
+    // Subtle comic motion lines on the sides while the scruff-held cat dangles and swings.
+    public static void DrawDangleLines(DrawingContext dc, double lift, double swingDeg, double t)
+    {
+        if (lift <= .10) return;
+        double op = Limit(lift, 0, 1) * (0.45 + 0.55 * Limit(Math.Abs(swingDeg) / 7.0, 0, 1));
+        double bob = Math.Sin(t * 7.0) * 2.0;
+        dc.PushOpacity(op);
+        StreamGeometry l1 = new StreamGeometry();
+        using (StreamGeometryContext g = l1.Open())
+        {
+            g.BeginFigure(new Point(136, 118 + bob), false, false);
+            g.QuadraticBezierTo(new Point(128, 134 + bob), new Point(134, 150 + bob), true, false);
+        }
+        StreamGeometry r1 = new StreamGeometry();
+        using (StreamGeometryContext g = r1.Open())
+        {
+            g.BeginFigure(new Point(292, 118 - bob), false, false);
+            g.QuadraticBezierTo(new Point(300, 134 - bob), new Point(294, 150 - bob), true, false);
+        }
+        dc.DrawGeometry(null, DangleArcPen, l1);
+        dc.DrawGeometry(null, DangleArcPen, r1);
         dc.Pop();
     }
 }

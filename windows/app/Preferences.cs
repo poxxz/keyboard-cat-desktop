@@ -9,7 +9,7 @@ internal sealed class Preferences
     public double X = double.NaN, Y = double.NaN, Scale = 1.0;
     public bool Labels = true, ClickThrough = false, OnTop = true, PasswordMode = true, AutoCheckUpdate = true;
     public int IdleMinutes = 5;
-    public CatStyle Cat = CatStyle.Black;
+    public CatStyle Cat = CatStyle.Wednesday;
     public string CustomSkinId = "";
     public KeyboardStyle Keyboard = KeyboardStyle.Classic;
     public MouseStyle Mouse = MouseStyle.Classic;
@@ -42,6 +42,7 @@ internal sealed class Preferences
                 int idle = (int?)root.Attribute("idleMinutes") ?? 5;
                 p.IdleMinutes = Math.Max(0, Math.Min(60, idle));
                 p.Cat = ReadStyle(root, "catStyle", p.Cat);
+                if (p.Cat == CatStyle.Black) p.Cat = CatStyle.Wednesday;
                 p.CustomSkinId = ((string)root.Attribute("customSkinId") ?? "").Trim();
                 p.Keyboard = ReadStyle(root, "keyboard", p.Keyboard);
                 p.Mouse = ReadStyle(root, "mouse", p.Mouse);

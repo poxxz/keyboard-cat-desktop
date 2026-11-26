@@ -682,11 +682,10 @@ internal sealed partial class SettingsWindow : Window
         UniformGrid catGrid = new UniformGrid { Columns = 4 };
         var catDefs = new[]
         {
-            new { Style = CatStyle.Black, Name = "经典黑猫" },
+            new { Style = CatStyle.Wednesday, Name = "星期三" },
             new { Style = CatStyle.Ginger, Name = "奶油橘猫" },
             new { Style = CatStyle.JapaneseBobtail, Name = "短尾三花" },
             new { Style = CatStyle.PhotoTabby, Name = "长毛虎斑" },
-            new { Style = CatStyle.Wednesday, Name = "星期三" },
             new { Style = CatStyle.Coffee, Name = "咖啡" },
             new { Style = CatStyle.SilverShaded, Name = "银渐层" },
             new { Style = CatStyle.Siamese, Name = "暹罗猫" }
@@ -704,6 +703,58 @@ internal sealed partial class SettingsWindow : Window
             catCards.Add(card);
             catGrid.Children.Add(card.Root);
         }
+
+        // 8th slot: quick entry card into the pure-vector Skin Workshop
+        StackPanel workshopEntrySp = new StackPanel { HorizontalAlignment = HorizontalAlignment.Center, VerticalAlignment = VerticalAlignment.Center };
+        Border plusCircle = new Border
+        {
+            Width = 30,
+            Height = 30,
+            CornerRadius = new CornerRadius(15),
+            Margin = new Thickness(0, 2, 0, 2),
+            Background = BrushOf(0xFFF3CE),
+            BorderBrush = BrushOf(0xE8BC5A),
+            BorderThickness = new Thickness(1),
+            Child = new Path
+            {
+                Data = Geometry.Parse("M 7,3 L 7,11 M 3,7 L 11,7"),
+                Width = 12,
+                Height = 12,
+                Stretch = Stretch.Uniform,
+                Stroke = BrushOf(0x8A570E),
+                StrokeThickness = 1.8,
+                StrokeStartLineCap = PenLineCap.Round,
+                StrokeEndLineCap = PenLineCap.Round,
+                HorizontalAlignment = HorizontalAlignment.Center,
+                VerticalAlignment = VerticalAlignment.Center
+            }
+        };
+        workshopEntrySp.Children.Add(plusCircle);
+        workshopEntrySp.Children.Add(new TextBlock
+        {
+            Text = "更多自定义",
+            FontSize = 11,
+            FontWeight = FontWeights.SemiBold,
+            Foreground = BrushOf(0x7B4E0E),
+            HorizontalAlignment = HorizontalAlignment.Center,
+            Margin = new Thickness(0, 3, 0, 0)
+        });
+        Border workshopEntryCard = new Border
+        {
+            Background = BrushOf(0xFDF7E7),
+            BorderBrush = BrushOf(0xE8D2A2),
+            BorderThickness = new Thickness(1.5),
+            CornerRadius = new CornerRadius(10),
+            Padding = new Thickness(4, 6, 4, 5),
+            Margin = new Thickness(3),
+            Cursor = Cursors.Hand,
+            Child = workshopEntrySp
+        };
+        workshopEntryCard.MouseEnter += delegate { workshopEntryCard.Background = BrushOf(0xFFF1CA); };
+        workshopEntryCard.MouseLeave += delegate { workshopEntryCard.Background = BrushOf(0xFDF7E7); };
+        workshopEntryCard.MouseLeftButtonUp += delegate { SelectTab(1); };
+        catGrid.Children.Add(workshopEntryCard);
+
         catSec.Children.Add(catGrid);
 
         // Compact custom skins quick row (fixed height so adding skins never changes window height)
@@ -1071,7 +1122,7 @@ internal sealed partial class SettingsWindow : Window
         });
         petTip.Children.Add(new TextBlock
         {
-            Text = "鼠标移到小猫头或身体上将切换为抚摸手势：轻揉或轻点会开心眯眼冒爱心与星星，揉得太快会不耐烦；按住不动 0.35 秒后可拖动位置。",
+            Text = "鼠标移到小猫头或身体上将切换为抚摸手势：轻揉或轻点会开心眯眼冒爱心与星星，揉得太快会不耐烦；按住不动 0.35 秒即可揪起后颈皮抱着键鼠拖动位置。",
             FontSize = 11,
             Foreground = BrushOf(0x7C6B59),
             TextWrapping = TextWrapping.Wrap,

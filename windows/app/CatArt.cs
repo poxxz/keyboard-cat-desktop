@@ -286,20 +286,21 @@ public static partial class CatArt
         bool styled = coffee || silver || siamese || style == CatStyle.Wednesday;
         double gx=Limit(gazeX,-1,1), gy=Limit(gazeY,-1,1);
         double sleep = Limit(mood.Sleep, 0, 1);
-        double crouch = Limit(mood.Crouch, 0, 1);
-        double happy = Limit(mood.HappyPet, 0, 1) * (1 - sleep);
-        double impatient = Limit(mood.Impatient, 0, 1) * (1 - sleep);
+        double lift = Limit(mood.ScruffLift, 0, 1);
+        double crouch = Limit(mood.Crouch, 0, 1) * (1 - lift);
+        double happy = Limit(mood.HappyPet, 0, 1) * (1 - sleep) * (1 - lift);
+        double impatient = Limit(mood.Impatient, 0, 1) * (1 - sleep) * (1 - lift);
         double highLeft = Smooth((195 - leftPaw.Y) / 45);
-        double lean=Smooth((157-leftPaw.X)/50) * (1 - sleep) * (1 - highLeft);
+        double lean=Smooth((157-leftPaw.X)/50) * (1 - sleep) * (1 - highLeft) * (1 - lift);
         double breath=Math.Sin(t*(sleep > 0.5 ? 1.15 : 1.7))*(sleep > 0.5 ? 1.7 : 0.72);
         double angerBreath = 0.5 + 0.5 * Math.Sin(t * 6.8);
         if (styled) TailStyled(dc,t,style,mood); else TailMood(dc,t,ginger,mood);
 
-        double syScale = 1.0 - 0.45 * sleep - 0.10 * crouch + 0.025 * happy * Math.Sin(t * 5.0);
-        double sxScale = 1.0 + 0.04 * sleep + 0.04 * crouch + 0.02 * happy;
+        double syScale = 1.0 - 0.45 * sleep - 0.10 * crouch + 0.025 * happy * Math.Sin(t * 5.0) + 0.075 * lift;
+        double sxScale = 1.0 + 0.04 * sleep + 0.04 * crouch + 0.02 * happy - 0.065 * lift;
         Brush bodyBrush = siamese ? Siamese.BodyFur : silver ? SilverShaded.BodyFur : coffee ? Coffee.BodyFur : ginger ? Ginger.BodyFur : Fur;
 
-        // Keep the hips planted while the chest follows the outstretched mouse paw, and squash cleanly for sleep/crouch.
+        // Keep the hips planted while the chest follows the outstretched mouse paw, and squash/stretch cleanly for sleep/crouch/scruff-lift.
         dc.PushTransform(new MatrixTransform(1,0,lean*0.282,1, -233*lean*0.282,0));
         dc.PushTransform(new TranslateTransform(214, 235));
         dc.PushTransform(new ScaleTransform(sxScale, syScale));
@@ -324,9 +325,8 @@ public static partial class CatArt
         }
 
         // A caller-supplied layer goes here, between the torso and the
-        // forelegs: the gamepad sits in front of the chest and under the
-        // paws that hold it. Drawing it before DrawStyled would leave it
-        // hidden behind the opaque body.
+        // forelegs: the gamepad (or hugged keyboard & mouse while dragged)
+        // sits in front of the chest and under the paws that hold it.
         if (between != null) between(dc);
         if (styled)
         {
@@ -343,18 +343,24 @@ public static partial class CatArt
         double nuzzleY = mood.PetNuzzleY * 2.5 * happy - 1.5 * happy + 2.2 * impatient;
         double shakeX = impatient > 0.02 ? Math.Sin(t * 26.0) * 1.9 * impatient : 0;
         double hx = 214 - 36.8*lean + gx*3.2*(1 - sleep) - 2.0*sleep + nuzzleX + shakeX;
-        double hyNorm = 86 + breath + gy*2.0 + lean*1.4 + 12.0*crouch + nuzzleY;
+        double hyNorm = 86 + breath + gy*2.0 + lean*1.4 + 12.0*crouch + nuzzleY + 4.5*lift;
         double hy = hyNorm + (180 + breath - hyNorm) * sleep;
-        double hrot = (gx*2.8 - lean*2.4 + mood.PetNuzzleX * 6.5 * happy + Math.Sin(t * 5.2) * 2.6 * happy + Math.Sin(t * 22.0) * 2.8 * impatient)*(1 - sleep) - 8.5*sleep;
-        double browAnger = Math.Max(mood.Anger, impatient * 0.92);
+        double hrot = (gx*2.8 - lean*2.4 + mood.PetNuzzleX * 6.5 * happy + Math.Sin(t * 5.2) * 2.6 * happy + Math.Sin(t * 22.0) * 2.8 * impatient)*(1 - sleep)*(1 - lift) - 8.5*sleep - mood.DragSwing * 0.18 * lift;
+        double browAnger = Math.Max(mood.Anger, impatient * 0.92) * (1 - lift);
+        double eyeBoost = Math.Max(crouch, lift * 0.72);
+        Brush headFur = siamese ? Siamese.HeadFur : silver ? SilverShaded.HeadFur : coffee ? Coffee.HeadFur : ginger ? Ginger.HeadFur : Face;
         dc.PushTransform(new TranslateTransform(hx, hy));
         dc.PushTransform(new RotateTransform(hrot));
-        if (styled) DrawHeadStyled(dc, style, gx, gy, blink, browAnger, angerBreath, crouch, happy);
-        else DrawHeadMood(dc, ginger, gx, gy, blink, browAnger, angerBreath, crouch, happy);
-        if (happy > .05) DrawBlush(dc, happy);
+        if (lift > .02) DrawScruffPinch(dc, headFur, lift);
+        if (lift > .01) dc.PushTransform(new ScaleTransform(1.0 + 0.025 * lift, 1.0 - 0.035 * lift));
+        if (styled) DrawHeadStyled(dc, style, gx, gy, blink, browAnger, angerBreath, eyeBoost, happy);
+        else DrawHeadMood(dc, ginger, gx, gy, blink, browAnger, angerBreath, eyeBoost, happy);
+        double blushAmt = Math.Max(happy, lift * 0.42);
+        if (blushAmt > .05) DrawBlush(dc, blushAmt);
         if (mood.Sweat > .01) DrawSweat(dc, t, mood.Sweat);
-        if (mood.Anger > .01) DrawAnger(dc, t, mood.Anger);
+        if (mood.Anger > .01 && lift < .5) DrawAnger(dc, t, mood.Anger);
         if (impatient > .05) DrawImpatientMark(dc, t, impatient);
+        if (lift > .01) dc.Pop();
         dc.Pop();
         dc.Pop();
     }

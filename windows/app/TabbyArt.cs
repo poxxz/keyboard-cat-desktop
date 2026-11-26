@@ -439,19 +439,20 @@ internal static class TabbyArt
                             Action<DrawingContext> between = null, double pawRaised = -1, CatMood mood = default(CatMood))
     {
         double sleep = Math.Max(0, Math.Min(1, mood.Sleep));
-        double crouch = Math.Max(0, Math.Min(1, mood.Crouch));
-        double happy = Math.Max(0, Math.Min(1, mood.HappyPet)) * (1 - sleep);
-        double impatient = Math.Max(0, Math.Min(1, mood.Impatient)) * (1 - sleep);
-        double lean=Lean(leftPaw) * (1 - sleep);
-        double syScale = 1.0 - 0.45 * sleep - 0.10 * crouch + 0.025 * happy * Math.Sin(time * 5.0);
-        double sxScale = 1.0 + 0.04 * sleep + 0.04 * crouch + 0.02 * happy;
+        double lift = Math.Max(0, Math.Min(1, mood.ScruffLift));
+        double crouch = Math.Max(0, Math.Min(1, mood.Crouch)) * (1 - lift);
+        double happy = Math.Max(0, Math.Min(1, mood.HappyPet)) * (1 - sleep) * (1 - lift);
+        double impatient = Math.Max(0, Math.Min(1, mood.Impatient)) * (1 - sleep) * (1 - lift);
+        double lean=Lean(leftPaw) * (1 - sleep) * (1 - lift);
+        double syScale = 1.0 - 0.45 * sleep - 0.10 * crouch + 0.025 * happy * Math.Sin(time * 5.0) + 0.07 * lift;
+        double sxScale = 1.0 + 0.04 * sleep + 0.04 * crouch + 0.02 * happy - 0.06 * lift;
         double bodyYShift = (1.0 - syScale) * (235.0 - BodyTop);
         double angerBreath = 0.5 + 0.5 * Math.Sin(time * 6.8);
 
         double tailSpeed = 1.8 + mood.Anger * 2.8 + impatient * 3.4 + crouch * 2.2 - sleep * 1.1 + happy * 0.45;
         double tailAmp = 2.1 + mood.Anger * 2.0 + impatient * 2.6 + crouch * 2.5 + happy * 0.9;
-        dc.PushTransform(new TranslateTransform(187,184 + 14 * sleep));
-        dc.PushTransform(new RotateTransform(186+Math.Sin(time*tailSpeed)*tailAmp));
+        dc.PushTransform(new TranslateTransform(187,184 + 14 * sleep + 8 * lift));
+        dc.PushTransform(new RotateTransform(186 - 10 * lift + Math.Sin(time*tailSpeed)*tailAmp));
         dc.PushTransform(new ScaleTransform(1.1,1.22));
         dc.DrawDrawing(TailCoat);
         dc.Pop();
@@ -464,8 +465,7 @@ internal static class TabbyArt
         dc.Pop();
         dc.Pop();
         // Same layering as the base cat: a caller-supplied layer (the
-        // gamepad) goes between the torso and the forelegs, or the opaque
-        // body hides it.
+        // gamepad or hugged keyboard & mouse) goes between the torso and the forelegs.
         if (between != null) between(dc);
         double rSy = BodyTop + bodyYShift + 17.0 * syScale;
         double lSy = BodyTop + bodyYShift + (17.0 - 5.0 * lean) * syScale;
@@ -487,17 +487,20 @@ internal static class TabbyArt
         double nuzzleY = mood.PetNuzzleY * 2.5 * happy - 1.5 * happy + 2.2 * impatient;
         double shakeX = impatient > 0.02 ? Math.Sin(time * 26.0) * 1.9 * impatient : 0;
         double hx = 214 - 33.5*lean + 2.5*gazeX*(1 - sleep) - 2.0*sleep + nuzzleX + shakeX;
-        double hyNorm = BodyTop - 2 + 2*gazeY + Math.Sin(time*breathFreq)*breathAmp + 12.0*crouch + nuzzleY;
+        double hyNorm = BodyTop - 2 + 2*gazeY + Math.Sin(time*breathFreq)*breathAmp + 12.0*crouch + nuzzleY + 4.0*lift;
         double hy = hyNorm + (186 + Math.Sin(time*1.15)*1.8 - hyNorm)*sleep;
-        double rot = (-2.25 + 2.8*gazeX - 2.4*lean + mood.PetNuzzleX * 6.5 * happy + Math.Sin(time * 5.2) * 2.6 * happy + Math.Sin(time * 22.0) * 2.8 * impatient)*(1 - sleep) - 8.5*sleep;
-        double browAnger = Math.Max(mood.Anger, impatient * 0.92);
+        double rot = (-2.25 + 2.8*gazeX - 2.4*lean + mood.PetNuzzleX * 6.5 * happy + Math.Sin(time * 5.2) * 2.6 * happy + Math.Sin(time * 22.0) * 2.8 * impatient)*(1 - sleep)*(1 - lift) - 8.5*sleep - mood.DragSwing * 0.18 * lift;
+        double browAnger = Math.Max(mood.Anger, impatient * 0.92) * (1 - lift);
+        double eyeBoost = Math.Max(crouch, lift * 0.72);
         dc.PushTransform(new TranslateTransform(hx, hy));
         dc.PushTransform(new RotateTransform(rot));
-        dc.PushTransform(new ScaleTransform(1.055,1));
-        DrawHead(dc,gazeX,gazeY,blink,browAnger,angerBreath,mood.Crouch,happy);
-        if (happy > .05) CatArt.DrawBlush(dc, happy);
+        dc.PushTransform(new ScaleTransform(1.055 * (1.0 + 0.02 * lift), 1.0 - 0.03 * lift));
+        if (lift > .02) CatArt.DrawScruffPinch(dc, LidFur, lift);
+        DrawHead(dc,gazeX,gazeY,blink,browAnger,angerBreath,eyeBoost,happy);
+        double blushAmt = Math.Max(happy, lift * 0.42);
+        if (blushAmt > .05) CatArt.DrawBlush(dc, blushAmt);
         if (mood.Sweat > .01) CatArt.DrawSweat(dc, time, mood.Sweat);
-        if (mood.Anger > .01) CatArt.DrawAnger(dc, time, mood.Anger);
+        if (mood.Anger > .01 && lift < .5) CatArt.DrawAnger(dc, time, mood.Anger);
         if (impatient > .05) CatArt.DrawImpatientMark(dc, time, impatient);
         dc.Pop();
         dc.Pop();

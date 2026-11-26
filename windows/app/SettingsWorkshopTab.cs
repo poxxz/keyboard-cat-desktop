@@ -48,7 +48,7 @@ internal sealed partial class SettingsWindow
     private TextBox skinNameBox;
     private TextBlock workshopStatusText;
 
-    private readonly List<SegmentButton> bodyBaseSegs = new List<SegmentButton>();
+    private readonly List<WorkshopPill> bodyBasePills = new List<WorkshopPill>();
     private readonly List<WorkshopPill> facePills = new List<WorkshopPill>();
     private readonly List<WorkshopPill> bellyPills = new List<WorkshopPill>();
     private readonly List<WorkshopPill> bodyPatternPills = new List<WorkshopPill>();
@@ -65,11 +65,7 @@ internal sealed partial class SettingsWindow
 
     private UIElement BuildWorkshopTab()
     {
-        editingSkin = new CatSkinData
-        {
-            Id = CatSkinData.NewId(),
-            Name = "燕尾小猫"
-        };
+        editingSkin = CatSkinData.FromPreset("bluewhite");
 
         DockPanel root = new DockPanel { LastChildFill = true, Height = 496 };
 
@@ -188,33 +184,37 @@ internal sealed partial class SettingsWindow
 
         meta.Children.Add(new TextBlock
         {
-            Text = "从内置小猫复制配色",
+            Text = "常见猫咪一键预设",
             FontSize = 10.5,
             FontWeight = FontWeights.SemiBold,
             Foreground = TextSecondary,
-            Margin = new Thickness(0, 8, 0, 4)
+            Margin = new Thickness(0, 7, 0, 4)
         });
         WrapPanel tplWrap = new WrapPanel();
         var templates = new[]
         {
-            new { Style = CatStyle.Black, Label = "黑猫" },
-            new { Style = CatStyle.Wednesday, Label = "星期三" },
-            new { Style = CatStyle.Ginger, Label = "橘猫" },
-            new { Style = CatStyle.Coffee, Label = "咖啡" },
-            new { Style = CatStyle.SilverShaded, Label = "银渐层" },
-            new { Style = CatStyle.Siamese, Label = "暹罗" },
-            new { Style = CatStyle.JapaneseBobtail, Label = "三花" },
-            new { Style = CatStyle.PhotoTabby, Label = "虎斑" }
+            new { Key = "wednesday", Label = "星期三" },
+            new { Key = "blue", Label = "蓝猫" },
+            new { Key = "bluewhite", Label = "蓝白" },
+            new { Key = "amshort", Label = "美短" },
+            new { Key = "ragdoll", Label = "布偶" },
+            new { Key = "fold", Label = "折耳" },
+            new { Key = "ginger", Label = "橘猫" },
+            new { Key = "coffee", Label = "咖啡" },
+            new { Key = "silver", Label = "银渐层" },
+            new { Key = "siamese", Label = "暹罗" },
+            new { Key = "calico", Label = "三花" },
+            new { Key = "tabby", Label = "虎斑" }
         };
         for (int i = 0; i < templates.Length; ++i)
         {
-            CatStyle st = templates[i].Style;
+            string key = templates[i].Key;
             string lbl = templates[i].Label;
             Border chip = new Border
             {
-                CornerRadius = new CornerRadius(7),
-                Padding = new Thickness(6, 2.5, 6, 2.5),
-                Margin = new Thickness(0, 0, 4, 4),
+                CornerRadius = new CornerRadius(6.5),
+                Padding = new Thickness(5.5, 2, 5.5, 2),
+                Margin = new Thickness(0, 0, 3.5, 3.5),
                 Background = ItemBg,
                 BorderBrush = ItemBorder,
                 BorderThickness = new Thickness(1),
@@ -222,7 +222,7 @@ internal sealed partial class SettingsWindow
                 Child = new TextBlock
                 {
                     Text = lbl,
-                    FontSize = 10.5,
+                    FontSize = 10,
                     FontWeight = FontWeights.SemiBold,
                     Foreground = BrushOf(0x5A4A3A)
                 }
@@ -232,17 +232,17 @@ internal sealed partial class SettingsWindow
             chip.MouseLeftButtonUp += delegate
             {
                 string keepId = editingSkin != null ? editingSkin.Id : CatSkinData.NewId();
-                editingSkin = CatSkinData.FromBuiltIn(st, lbl + "二创");
+                editingSkin = CatSkinData.FromPreset(key);
                 editingSkin.Id = keepId;
                 SyncWorkshopControlsFromModel();
-                SetWorkshopStatus("已载入「" + lbl + "」底色模板");
+                SetWorkshopStatus("已载入「" + lbl + "」品种预设");
             };
             tplWrap.Children.Add(chip);
         }
         meta.Children.Add(tplWrap);
 
-        Border metaCard = MakeSectionCard(meta, new Thickness(9, 8, 9, 6));
-        metaCard.Margin = new Thickness(0, 0, 0, 8);
+        Border metaCard = MakeSectionCard(meta, new Thickness(9, 7, 9, 5));
+        metaCard.Margin = new Thickness(0, 0, 0, 7);
         DockPanel.SetDock(metaCard, Dock.Top);
         left.Children.Add(metaCard);
 
@@ -293,28 +293,30 @@ internal sealed partial class SettingsWindow
 
         // Section 1: Body base & markings
         StackPanel shapeSec = new StackPanel();
-        shapeSec.Children.Add(MakeSectionHeader("体型与花纹", "纯矢量高清组合"));
+        shapeSec.Children.Add(MakeSectionHeader("底模与花纹", "英短 / 美短 / 布偶 / 折耳等自由混搭"));
 
-        shapeSec.Children.Add(MakeSubLabel("基础体型"));
-        shapeSec.Children.Add(MakeSegmentBar(
-            bodyBaseSegs,
-            new[] { "短毛圆润", "长毛蓬松" },
-            new object[] { SkinBodyBase.ShortHair, SkinBodyBase.FluffyLong },
+        shapeSec.Children.Add(MakeSubLabel("基础底模"));
+        shapeSec.Children.Add(MakePillWrap(
+            bodyBasePills,
+            new[] { "短毛圆润", "英短圆脸", "折耳软萌", "长毛蓬松" },
+            new object[] { SkinBodyBase.ShortHair, SkinBodyBase.ChubbyBritish, SkinBodyBase.FoldEar, SkinBodyBase.FluffyLong },
             delegate(object v)
             {
                 editingSkin.BodyBase = (SkinBodyBase)v;
-                UpdateSegmentGroup(bodyBaseSegs, editingSkin.BodyBase);
+                UpdatePillGroup(bodyBasePills, editingSkin.BodyBase);
                 RefreshWorkshopPreview();
             }));
 
         shapeSec.Children.Add(MakeSubLabel("脸部花纹"));
         shapeSec.Children.Add(MakePillWrap(
             facePills,
-            new[] { "无", "咖啡面具", "虎斑M", "暹罗重点", "燕尾服", "三花斑", "奶牛斑" },
+            new[] { "无", "美短虎斑", "布偶开脸", "蓝白正八", "咖啡面具", "经典虎斑M", "暹罗重点", "燕尾服", "三花斑", "奶牛斑", "玳瑁斑" },
             new object[]
             {
-                SkinFacePattern.None, SkinFacePattern.CoffeeMask, SkinFacePattern.TabbyM,
-                SkinFacePattern.SiamesePoint, SkinFacePattern.Tuxedo, SkinFacePattern.Calico, SkinFacePattern.CowSpots
+                SkinFacePattern.None, SkinFacePattern.AmericanShorthair, SkinFacePattern.RagdollMask,
+                SkinFacePattern.BlueBicolor, SkinFacePattern.CoffeeMask, SkinFacePattern.TabbyM,
+                SkinFacePattern.SiamesePoint, SkinFacePattern.Tuxedo, SkinFacePattern.Calico,
+                SkinFacePattern.CowSpots, SkinFacePattern.Tortie
             },
             delegate(object v)
             {
@@ -326,8 +328,12 @@ internal sealed partial class SettingsWindow
         shapeSec.Children.Add(MakeSubLabel("胸腹毛色"));
         shapeSec.Children.Add(MakePillWrap(
             bellyPills,
-            new[] { "无", "小围兜", "大白肚", "长毛围脖" },
-            new object[] { SkinBellyStyle.None, SkinBellyStyle.Bib, SkinBellyStyle.FullBelly, SkinBellyStyle.Ruff },
+            new[] { "无", "小围兜", "大白肚", "长毛围脖", "胸口爱心", "虎斑肚点" },
+            new object[]
+            {
+                SkinBellyStyle.None, SkinBellyStyle.Bib, SkinBellyStyle.FullBelly,
+                SkinBellyStyle.Ruff, SkinBellyStyle.HeartChest, SkinBellyStyle.TabbyBelly
+            },
             delegate(object v)
             {
                 editingSkin.BellyStyle = (SkinBellyStyle)v;
@@ -338,8 +344,12 @@ internal sealed partial class SettingsWindow
         shapeSec.Children.Add(MakeSubLabel("身体纹路"));
         shapeSec.Children.Add(MakePillWrap(
             bodyPatternPills,
-            new[] { "纯色", "侧肋条纹", "花斑块" },
-            new object[] { SkinBodyPattern.None, SkinBodyPattern.FlankStripes, SkinBodyPattern.Patches },
+            new[] { "纯色", "侧肋条纹", "美短旋涡", "豹纹斑点", "花斑块", "披风背纹" },
+            new object[]
+            {
+                SkinBodyPattern.None, SkinBodyPattern.FlankStripes, SkinBodyPattern.ClassicSwirl,
+                SkinBodyPattern.Spotted, SkinBodyPattern.Patches, SkinBodyPattern.BackSaddle
+            },
             delegate(object v)
             {
                 editingSkin.BodyPattern = (SkinBodyPattern)v;
@@ -347,21 +357,31 @@ internal sealed partial class SettingsWindow
                 RefreshWorkshopPreview();
             }));
 
-        shapeSec.Children.Add(MakeSubLabel("前爪与尾巴"));
+        shapeSec.Children.Add(MakeSubLabel("前爪样式"));
         shapeSec.Children.Add(MakePillWrap(
             pawPills,
-            new[] { "爪同体色", "白手套", "深色重点爪" },
-            new object[] { SkinPawStyle.BodyColor, SkinPawStyle.Socks, SkinPawStyle.DarkPoints },
+            new[] { "爪同体色", "白手套", "长筒白袜", "深色重点爪", "虎斑手环" },
+            new object[]
+            {
+                SkinPawStyle.BodyColor, SkinPawStyle.Socks, SkinPawStyle.HighBoots,
+                SkinPawStyle.DarkPoints, SkinPawStyle.TabbyBracelets
+            },
             delegate(object v)
             {
                 editingSkin.PawStyle = (SkinPawStyle)v;
                 UpdatePillGroup(pawPills, editingSkin.PawStyle);
                 RefreshWorkshopPreview();
             }));
+
+        shapeSec.Children.Add(MakeSubLabel("尾巴样式"));
         shapeSec.Children.Add(MakePillWrap(
             tailPills,
-            new[] { "纯色尾", "虎斑环纹尾", "浅色尾尖" },
-            new object[] { SkinTailStyle.Solid, SkinTailStyle.TabbyRings, SkinTailStyle.LightTip },
+            new[] { "标准纯色", "英短粗尾", "虎斑环纹", "浅色尾尖", "深色尾尖", "短毛球尾" },
+            new object[]
+            {
+                SkinTailStyle.Solid, SkinTailStyle.ThickPlush, SkinTailStyle.TabbyRings,
+                SkinTailStyle.LightTip, SkinTailStyle.DarkTip, SkinTailStyle.BobtailPom
+            },
             delegate(object v)
             {
                 editingSkin.TailStyle = (SkinTailStyle)v;
@@ -385,12 +405,12 @@ internal sealed partial class SettingsWindow
         coatSec.Children.Add(MakeSectionHeader("毛色配色", "点击色板或输入 #RRGGBB"));
         coatSec.Children.Add(AddColorPicker(
             "主毛色",
-            new[] { "#242226", "#3E3A40", "#F0A860", "#BD8952", "#D5DAE0", "#FAF4E8", "#E6D5BE", "#B898A4" },
+            new[] { "#757F8C", "#CFD4DA", "#262428", "#F0A860", "#BD8952", "#F6F0E8", "#E6D5BE", "#E8DFD2" },
             delegate { return editingSkin.FurColor; },
             delegate(string h) { editingSkin.FurColor = h; }));
         coatSec.Children.Add(AddColorPicker(
             "斑纹 / 重点色",
-            new[] { "#4C3530", "#634328", "#C26F38", "#7A6048", "#8E95A0", "#2C2A30", "#E59876", "#8A5E44" },
+            new[] { "#3B4048", "#565F6C", "#6F5B50", "#4C3530", "#634328", "#C26F38", "#8E95A0", "#E59876" },
             delegate { return editingSkin.AccentColor; },
             delegate(string h) { editingSkin.AccentColor = h; }));
         coatSec.Children.Add(AddColorPicker(
@@ -766,7 +786,7 @@ internal sealed partial class SettingsWindow
         {
             if (skinNameBox != null) skinNameBox.Text = editingSkin.Name ?? "";
             UpdateSegmentGroup(poseButtons, workshopPose);
-            UpdateSegmentGroup(bodyBaseSegs, editingSkin.BodyBase);
+            UpdatePillGroup(bodyBasePills, editingSkin.BodyBase);
             UpdatePillGroup(facePills, editingSkin.FacePattern);
             UpdatePillGroup(bellyPills, editingSkin.BellyStyle);
             UpdatePillGroup(bodyPatternPills, editingSkin.BodyPattern);

@@ -106,10 +106,10 @@ internal sealed class PetWindow : Window
         tray.ContextMenuStrip = menu;
         tray.MouseClick += delegate(object sender, Forms.MouseEventArgs e)
         {
-            if (e.Button == Forms.MouseButtons.Left) OpenSettings(null);
+            if (e.Button == Forms.MouseButtons.Left) OpenSettings(null, false);
         };
-        tray.DoubleClick += delegate { Reveal(); OpenSettings(null); };
-        tray.BalloonTipClicked += delegate { Reveal(); OpenSettings(3); };
+        tray.DoubleClick += delegate { Reveal(); OpenSettings(null, false); };
+        tray.BalloonTipClicked += delegate { Reveal(); OpenSettings(3, false); };
         menu.Font = new Drawing.Font("Microsoft YaHei UI", 9f);
         menu.Opening += BuildMenu;
         menu.Closed += delegate { menuOpen = false; };
@@ -127,7 +127,7 @@ internal sealed class PetWindow : Window
         };
         MouseRightButtonUp += delegate(object sender, MouseButtonEventArgs e)
         {
-            OpenSettings(null); e.Handled = true;
+            OpenSettings(null, true); e.Handled = true;
         };
         Cursor = Cursors.Arrow;
         timer.Interval = TimeSpan.FromMilliseconds(1000.0 / 40);
@@ -316,8 +316,11 @@ internal sealed class PetWindow : Window
         if (dragging && dragStart.HasValue)
         {
             Vector delta = CursorInDips() - dragStart.Value;
-            Left = dragOrigin.X + delta.X;
+            double nextLeft = dragOrigin.X + delta.X;
+            double dx = nextLeft - Left;
+            Left = nextLeft;
             Top = dragOrigin.Y + delta.Y;
+            if (Math.Abs(dx) > 0.05) cat.NotifyDragMove(dx);
             return;
         }
         if (holdingForDrag)
@@ -385,7 +388,7 @@ internal sealed class PetWindow : Window
         item.Click += delegate { action(); };
         return item;
     }
-    private void OpenSettings(int? tabIndex)
+    private void OpenSettings(int? tabIndex, bool anchorToPet)
     {
         if (settingsWindow == null)
         {
@@ -500,16 +503,34 @@ internal sealed class PetWindow : Window
         }
         settingsWindow.SyncFromState();
         if (tabIndex.HasValue) settingsWindow.OpenTab(tabIndex.Value);
-        if (!settingsWindow.IsVisible)
+        if (anchorToPet || !settingsWindow.IsVisible)
         {
-            Rect area = LogicalArea(Forms.Screen.FromPoint(Forms.Cursor.Position).WorkingArea);
             double w = settingsWindow.Width;
-            double h = 540;
-            double x = Math.Max(area.Left + 12, Math.Min(area.Right - w - 12, area.Right - w - 24));
-            double y = Math.Max(area.Top + 12, Math.Min(area.Bottom - h - 12, area.Bottom - h - 24));
-            settingsWindow.Left = x;
-            settingsWindow.Top = y;
-            settingsWindow.Show();
+            double h = settingsWindow.ActualHeight > 120 ? settingsWindow.ActualHeight : 576;
+            if (anchorToPet)
+            {
+                Point petCenterDip = new Point(Left + Width * 0.5, Top + Height * 0.5);
+                Point petCenterDev = source.CompositionTarget.TransformToDevice.Transform(petCenterDip);
+                Rect area = LogicalArea(Forms.Screen.FromPoint(new Drawing.Point((int)petCenterDev.X, (int)petCenterDev.Y)).WorkingArea);
+                double x;
+                if (Left - w + 10 >= area.Left + 8) x = Left - w + 10;
+                else if (Left + Width - 10 + w <= area.Right - 8) x = Left + Width - 10;
+                else x = petCenterDip.X - w * 0.5;
+                double y = petCenterDip.Y - h * 0.5;
+                settingsWindow.Left = Math.Max(area.Left + 8, Math.Min(area.Right - w - 8, x));
+                settingsWindow.Top = Math.Max(area.Top + 8, Math.Min(area.Bottom - h - 8, y));
+            }
+            else
+            {
+                Point curDip = CursorInDips();
+                Rect area = LogicalArea(Forms.Screen.FromPoint(Forms.Cursor.Position).WorkingArea);
+                double x = curDip.X - w * 0.5;
+                double y = curDip.Y - h - 14;
+                if (y < area.Top + 8) y = curDip.Y + 14;
+                settingsWindow.Left = Math.Max(area.Left + 8, Math.Min(area.Right - w - 8, x));
+                settingsWindow.Top = Math.Max(area.Top + 8, Math.Min(area.Bottom - h - 8, y));
+            }
+            if (!settingsWindow.IsVisible) settingsWindow.Show();
         }
         settingsWindow.Activate();
     }
@@ -517,7 +538,7 @@ internal sealed class PetWindow : Window
     {
         menuOpen = true;
         while (menu.Items.Count > 0) menu.Items[0].Dispose();
-        var openItem = Item("打开设置…", false, delegate { OpenSettings(null); });
+        var openItem = Item("打开设置…", false, delegate { OpenSettings(null, false); });
         openItem.Font = new Drawing.Font(menu.Font, Drawing.FontStyle.Bold);
         menu.Items.Add(openItem);
         menu.Items.Add(new Forms.ToolStripSeparator());

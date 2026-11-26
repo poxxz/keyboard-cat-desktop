@@ -5,12 +5,12 @@ using System.IO;
 using System.Windows.Media;
 using System.Xml.Linq;
 
-public enum SkinBodyBase { ShortHair, FluffyLong }
-public enum SkinFacePattern { None, CoffeeMask, TabbyM, SiamesePoint, Tuxedo, Calico, CowSpots }
-public enum SkinBellyStyle { None, Bib, FullBelly, Ruff }
-public enum SkinBodyPattern { None, FlankStripes, Patches }
-public enum SkinPawStyle { BodyColor, Socks, DarkPoints }
-public enum SkinTailStyle { Solid, TabbyRings, LightTip }
+public enum SkinBodyBase { ShortHair, ChubbyBritish, FoldEar, FluffyLong }
+public enum SkinFacePattern { None, AmericanShorthair, RagdollMask, BlueBicolor, CoffeeMask, TabbyM, SiamesePoint, Tuxedo, Calico, CowSpots, Tortie }
+public enum SkinBellyStyle { None, Bib, FullBelly, Ruff, HeartChest, TabbyBelly }
+public enum SkinBodyPattern { None, FlankStripes, ClassicSwirl, Spotted, Patches, BackSaddle }
+public enum SkinPawStyle { BodyColor, Socks, HighBoots, DarkPoints, TabbyBracelets }
+public enum SkinTailStyle { Solid, ThickPlush, TabbyRings, LightTip, DarkTip, BobtailPom }
 public enum SkinPupilStyle { SleekOval, RoundCute }
 public enum SkinAccessory { None, CollarBell, BowTie, HeadRibbon, Glasses, HeadOrange, Ahoge }
 
@@ -19,23 +19,23 @@ internal sealed class CatSkinData
 {
     public string Id = "";
     public string Name = "我的小猫";
-    public SkinBodyBase BodyBase = SkinBodyBase.ShortHair;
-    public string FurColor = "#3A373C";
-    public string AccentColor = "#D4844A";
-    public string BellyColor = "#FFFBF4";
-    public string PawColor = "#FFFBF4";
-    public string InnerEarColor = "#F0A89E";
-    public string NoseColor = "#E68E92";
-    public string WhiskerColor = "#ECE6DC";
-    public string LeftEyeColor = "#F2B632";
+    public SkinBodyBase BodyBase = SkinBodyBase.ChubbyBritish;
+    public string FurColor = "#757F8C";
+    public string AccentColor = "#4C5562";
+    public string BellyColor = "#FFFDF8";
+    public string PawColor = "#FFFDF8";
+    public string InnerEarColor = "#D8A4A0";
+    public string NoseColor = "#5B6068";
+    public string WhiskerColor = "#E6E9EE";
+    public string LeftEyeColor = "#EB9D28";
     public bool Heterochromia = false;
     public string RightEyeColor = "#6BB8E8";
     public SkinPupilStyle PupilStyle = SkinPupilStyle.SleekOval;
-    public SkinFacePattern FacePattern = SkinFacePattern.Tuxedo;
+    public SkinFacePattern FacePattern = SkinFacePattern.BlueBicolor;
     public SkinBellyStyle BellyStyle = SkinBellyStyle.FullBelly;
     public SkinBodyPattern BodyPattern = SkinBodyPattern.None;
     public SkinPawStyle PawStyle = SkinPawStyle.Socks;
-    public SkinTailStyle TailStyle = SkinTailStyle.Solid;
+    public SkinTailStyle TailStyle = SkinTailStyle.ThickPlush;
     public bool DarkEarTips = false;
     public SkinAccessory Accessory = SkinAccessory.CollarBell;
     public string AccessoryColor = "#E46652";
@@ -63,6 +63,88 @@ internal sealed class CatSkinData
         return string.Format(CultureInfo.InvariantCulture, "#{0:X2}{1:X2}{2:X2}", c.R, c.G, c.B);
     }
 
+    // One-click common cat breed & built-in presets for the Skin Workshop.
+    public static CatSkinData FromPreset(string presetKey)
+    {
+        CatSkinData d = new CatSkinData { Id = NewId() };
+        switch ((presetKey ?? "").ToLowerInvariant())
+        {
+            case "blue":
+                d.Name = "英短蓝猫";
+                d.BodyBase = SkinBodyBase.ChubbyBritish;
+                d.FurColor = "#757F8C"; d.AccentColor = "#565F6C"; d.BellyColor = "#8993A0";
+                d.PawColor = "#757F8C"; d.InnerEarColor = "#B89A9C"; d.NoseColor = "#4C525C";
+                d.WhiskerColor = "#C8D0D8"; d.LeftEyeColor = "#EB9D28"; d.RightEyeColor = "#EB9D28";
+                d.PupilStyle = SkinPupilStyle.RoundCute;
+                d.FacePattern = SkinFacePattern.None; d.BellyStyle = SkinBellyStyle.None;
+                d.BodyPattern = SkinBodyPattern.None; d.PawStyle = SkinPawStyle.BodyColor;
+                d.TailStyle = SkinTailStyle.ThickPlush; d.Accessory = SkinAccessory.CollarBell;
+                d.AccessoryColor = "#E46652";
+                return d;
+
+            case "bluewhite":
+                d.Name = "英短蓝白";
+                d.BodyBase = SkinBodyBase.ChubbyBritish;
+                d.FurColor = "#757F8C"; d.AccentColor = "#565F6C"; d.BellyColor = "#FFFDF8";
+                d.PawColor = "#FFFDF8"; d.InnerEarColor = "#E4ACA8"; d.NoseColor = "#E4969A";
+                d.WhiskerColor = "#F4F6F9"; d.LeftEyeColor = "#F0A82C"; d.RightEyeColor = "#F0A82C";
+                d.PupilStyle = SkinPupilStyle.RoundCute;
+                d.FacePattern = SkinFacePattern.BlueBicolor; d.BellyStyle = SkinBellyStyle.FullBelly;
+                d.BodyPattern = SkinBodyPattern.BackSaddle; d.PawStyle = SkinPawStyle.HighBoots;
+                d.TailStyle = SkinTailStyle.ThickPlush; d.Accessory = SkinAccessory.BowTie;
+                d.AccessoryColor = "#5B8EC9";
+                return d;
+
+            case "amshort":
+                d.Name = "美短虎斑";
+                d.BodyBase = SkinBodyBase.ShortHair;
+                d.FurColor = "#CFD4DA"; d.AccentColor = "#3B4048"; d.BellyColor = "#F3F5F7";
+                d.PawColor = "#EAEDF0"; d.InnerEarColor = "#E0A8A4"; d.NoseColor = "#D48482";
+                d.WhiskerColor = "#F5F7FA"; d.LeftEyeColor = "#74C47C"; d.RightEyeColor = "#74C47C";
+                d.PupilStyle = SkinPupilStyle.SleekOval;
+                d.FacePattern = SkinFacePattern.AmericanShorthair; d.BellyStyle = SkinBellyStyle.TabbyBelly;
+                d.BodyPattern = SkinBodyPattern.ClassicSwirl; d.PawStyle = SkinPawStyle.TabbyBracelets;
+                d.TailStyle = SkinTailStyle.TabbyRings; d.DarkEarTips = true;
+                d.Accessory = SkinAccessory.None;
+                return d;
+
+            case "ragdoll":
+                d.Name = "海双布偶";
+                d.BodyBase = SkinBodyBase.FluffyLong;
+                d.FurColor = "#F6F0E8"; d.AccentColor = "#6F5B50"; d.BellyColor = "#FFFDF9";
+                d.PawColor = "#FFFDF9"; d.InnerEarColor = "#B8948C"; d.NoseColor = "#E4969C";
+                d.WhiskerColor = "#FFFFFF"; d.LeftEyeColor = "#60B2EB"; d.RightEyeColor = "#60B2EB";
+                d.PupilStyle = SkinPupilStyle.SleekOval;
+                d.FacePattern = SkinFacePattern.RagdollMask; d.BellyStyle = SkinBellyStyle.Ruff;
+                d.BodyPattern = SkinBodyPattern.BackSaddle; d.PawStyle = SkinPawStyle.Socks;
+                d.TailStyle = SkinTailStyle.DarkTip; d.Accessory = SkinAccessory.HeadRibbon;
+                d.AccessoryColor = "#EC8298";
+                return d;
+
+            case "fold":
+                d.Name = "软萌折耳";
+                d.BodyBase = SkinBodyBase.FoldEar;
+                d.FurColor = "#E8DFD2"; d.AccentColor = "#A89886"; d.BellyColor = "#FFFBF4";
+                d.PawColor = "#FFFBF4"; d.InnerEarColor = "#EAB4AE"; d.NoseColor = "#E28E92";
+                d.WhiskerColor = "#C6B9AA"; d.LeftEyeColor = "#E8A236"; d.RightEyeColor = "#E8A236";
+                d.PupilStyle = SkinPupilStyle.RoundCute;
+                d.FacePattern = SkinFacePattern.None; d.BellyStyle = SkinBellyStyle.HeartChest;
+                d.BodyPattern = SkinBodyPattern.None; d.PawStyle = SkinPawStyle.Socks;
+                d.TailStyle = SkinTailStyle.ThickPlush; d.Accessory = SkinAccessory.CollarBell;
+                d.AccessoryColor = "#5CC4A0";
+                return d;
+
+            case "wednesday": return FromBuiltIn(CatStyle.Wednesday, "星期三二创");
+            case "ginger": return FromBuiltIn(CatStyle.Ginger, "奶油橘二创");
+            case "coffee": return FromBuiltIn(CatStyle.Coffee, "咖啡二创");
+            case "silver": return FromBuiltIn(CatStyle.SilverShaded, "银渐层二创");
+            case "siamese": return FromBuiltIn(CatStyle.Siamese, "暹罗二创");
+            case "calico": return FromBuiltIn(CatStyle.JapaneseBobtail, "三花二创");
+            case "tabby": return FromBuiltIn(CatStyle.PhotoTabby, "长毛虎斑二创");
+            default: return FromBuiltIn(CatStyle.Wednesday, "我的小猫");
+        }
+    }
+
     public static CatSkinData FromBuiltIn(CatStyle style, string customName)
     {
         CatSkinData d = new CatSkinData
@@ -70,17 +152,11 @@ internal sealed class CatSkinData
             Id = NewId(),
             Name = string.IsNullOrEmpty(customName) ? "自定义小猫" : customName
         };
+        if (style == CatStyle.Black) style = CatStyle.Wednesday;
         switch (style)
         {
-            case CatStyle.Black:
-                d.FurColor = "#242226"; d.AccentColor = "#1B191D"; d.BellyColor = "#242226";
-                d.PawColor = "#242226"; d.InnerEarColor = "#3B353B"; d.NoseColor = "#443C42";
-                d.WhiskerColor = "#4B484A"; d.LeftEyeColor = "#C9EC4A"; d.RightEyeColor = "#C9EC4A";
-                d.FacePattern = SkinFacePattern.None; d.BellyStyle = SkinBellyStyle.None;
-                d.BodyPattern = SkinBodyPattern.None; d.PawStyle = SkinPawStyle.BodyColor;
-                d.TailStyle = SkinTailStyle.Solid; d.Accessory = SkinAccessory.None;
-                break;
             case CatStyle.Wednesday:
+                d.BodyBase = SkinBodyBase.ShortHair;
                 d.FurColor = "#262428"; d.AccentColor = "#1B191D"; d.BellyColor = "#262428";
                 d.PawColor = "#262428"; d.InnerEarColor = "#3B353B"; d.NoseColor = "#443C42";
                 d.WhiskerColor = "#555054"; d.LeftEyeColor = "#F2BF3C"; d.RightEyeColor = "#F2BF3C";
@@ -90,6 +166,7 @@ internal sealed class CatSkinData
                 d.AccessoryColor = "#E65A4F";
                 break;
             case CatStyle.Ginger:
+                d.BodyBase = SkinBodyBase.ShortHair;
                 d.FurColor = "#F0A860"; d.AccentColor = "#C26F38"; d.BellyColor = "#FFE7C3";
                 d.PawColor = "#FFE8C8"; d.InnerEarColor = "#EE9A8F"; d.NoseColor = "#DF8480";
                 d.WhiskerColor = "#926B4D"; d.LeftEyeColor = "#C8AF68"; d.RightEyeColor = "#C8AF68";
@@ -99,6 +176,7 @@ internal sealed class CatSkinData
                 d.AccessoryColor = "#F59824";
                 break;
             case CatStyle.Coffee:
+                d.BodyBase = SkinBodyBase.ShortHair;
                 d.FurColor = "#BD8952"; d.AccentColor = "#634328"; d.BellyColor = "#FFFDF9";
                 d.PawColor = "#FFFDF9"; d.InnerEarColor = "#ECC8A4"; d.NoseColor = "#EC989B";
                 d.WhiskerColor = "#FCF8F2"; d.LeftEyeColor = "#F2B528"; d.RightEyeColor = "#F2B528";
@@ -108,31 +186,34 @@ internal sealed class CatSkinData
                 d.Accessory = SkinAccessory.None;
                 break;
             case CatStyle.SilverShaded:
+                d.BodyBase = SkinBodyBase.ChubbyBritish;
                 d.FurColor = "#E4E7EA"; d.AccentColor = "#9AA0A8"; d.BellyColor = "#F7F8FA";
                 d.PawColor = "#F7F8FA"; d.InnerEarColor = "#E6B4AE"; d.NoseColor = "#DF928A";
                 d.WhiskerColor = "#9CA2A8"; d.LeftEyeColor = "#6CC07B"; d.RightEyeColor = "#6CC07B";
                 d.FacePattern = SkinFacePattern.None; d.BellyStyle = SkinBellyStyle.FullBelly;
                 d.BodyPattern = SkinBodyPattern.FlankStripes; d.PawStyle = SkinPawStyle.Socks;
-                d.TailStyle = SkinTailStyle.TabbyRings; d.Accessory = SkinAccessory.BowTie;
+                d.TailStyle = SkinTailStyle.DarkTip; d.Accessory = SkinAccessory.BowTie;
                 d.AccessoryColor = "#5B8EC9";
                 break;
             case CatStyle.Siamese:
+                d.BodyBase = SkinBodyBase.ShortHair;
                 d.FurColor = "#E7D9C6"; d.AccentColor = "#4C3530"; d.BellyColor = "#F3EADF";
                 d.PawColor = "#523B35"; d.InnerEarColor = "#85605A"; d.NoseColor = "#3B2727";
                 d.WhiskerColor = "#9E8A7E"; d.LeftEyeColor = "#8DC0E6"; d.RightEyeColor = "#8DC0E6";
                 d.FacePattern = SkinFacePattern.SiamesePoint; d.BellyStyle = SkinBellyStyle.Bib;
                 d.BodyPattern = SkinBodyPattern.None; d.PawStyle = SkinPawStyle.DarkPoints;
-                d.TailStyle = SkinTailStyle.Solid; d.Accessory = SkinAccessory.Glasses;
+                d.TailStyle = SkinTailStyle.DarkTip; d.Accessory = SkinAccessory.Glasses;
                 d.AccessoryColor = "#6D543D";
                 break;
             case CatStyle.JapaneseBobtail:
+                d.BodyBase = SkinBodyBase.ShortHair;
                 d.FurColor = "#FAF6EE"; d.AccentColor = "#DF924C"; d.BellyColor = "#FFFDF8";
                 d.PawColor = "#FFFDF8"; d.InnerEarColor = "#F0A9A0"; d.NoseColor = "#E58D90";
                 d.WhiskerColor = "#9A8B7C"; d.LeftEyeColor = "#D49B46"; d.RightEyeColor = "#6DB4DF";
                 d.Heterochromia = true;
                 d.FacePattern = SkinFacePattern.Calico; d.BellyStyle = SkinBellyStyle.FullBelly;
                 d.BodyPattern = SkinBodyPattern.Patches; d.PawStyle = SkinPawStyle.Socks;
-                d.TailStyle = SkinTailStyle.LightTip; d.Accessory = SkinAccessory.HeadRibbon;
+                d.TailStyle = SkinTailStyle.BobtailPom; d.Accessory = SkinAccessory.HeadRibbon;
                 d.AccessoryColor = "#E66678";
                 break;
             case CatStyle.PhotoTabby:
@@ -141,7 +222,7 @@ internal sealed class CatSkinData
                 d.PawColor = "#F5EEDC"; d.InnerEarColor = "#E4B8A8"; d.NoseColor = "#C97A7E";
                 d.WhiskerColor = "#F3E8D4"; d.LeftEyeColor = "#A6AD5E"; d.RightEyeColor = "#A6AD5E";
                 d.FacePattern = SkinFacePattern.TabbyM; d.BellyStyle = SkinBellyStyle.Ruff;
-                d.BodyPattern = SkinBodyPattern.FlankStripes; d.PawStyle = SkinPawStyle.Socks;
+                d.BodyPattern = SkinBodyPattern.FlankStripes; d.PawStyle = SkinPawStyle.TabbyBracelets;
                 d.TailStyle = SkinTailStyle.TabbyRings; d.Accessory = SkinAccessory.None;
                 break;
         }
@@ -160,14 +241,14 @@ internal sealed class CatSkinData
             new XAttribute("id", string.IsNullOrEmpty(Id) ? NewId() : Id),
             new XAttribute("name", string.IsNullOrEmpty(Name) ? "自定义小猫" : Name.Trim()),
             new XAttribute("bodyBase", BodyBase),
-            new XAttribute("fur", NormalizeHex(FurColor, "#3A373C")),
-            new XAttribute("accent", NormalizeHex(AccentColor, "#D4844A")),
-            new XAttribute("belly", NormalizeHex(BellyColor, "#FFFBF4")),
-            new XAttribute("paw", NormalizeHex(PawColor, "#FFFBF4")),
-            new XAttribute("innerEar", NormalizeHex(InnerEarColor, "#F0A89E")),
-            new XAttribute("nose", NormalizeHex(NoseColor, "#E68E92")),
-            new XAttribute("whisker", NormalizeHex(WhiskerColor, "#ECE6DC")),
-            new XAttribute("leftEye", NormalizeHex(LeftEyeColor, "#F2B632")),
+            new XAttribute("fur", NormalizeHex(FurColor, "#757F8C")),
+            new XAttribute("accent", NormalizeHex(AccentColor, "#4C5562")),
+            new XAttribute("belly", NormalizeHex(BellyColor, "#FFFDF8")),
+            new XAttribute("paw", NormalizeHex(PawColor, "#FFFDF8")),
+            new XAttribute("innerEar", NormalizeHex(InnerEarColor, "#D8A4A0")),
+            new XAttribute("nose", NormalizeHex(NoseColor, "#5B6068")),
+            new XAttribute("whisker", NormalizeHex(WhiskerColor, "#E6E9EE")),
+            new XAttribute("leftEye", NormalizeHex(LeftEyeColor, "#EB9D28")),
             new XAttribute("heterochromia", Heterochromia),
             new XAttribute("rightEye", NormalizeHex(RightEyeColor, "#6BB8E8")),
             new XAttribute("pupil", PupilStyle),
