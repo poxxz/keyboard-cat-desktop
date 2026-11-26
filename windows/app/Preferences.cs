@@ -10,6 +10,7 @@ internal sealed class Preferences
     public bool Labels = true, ClickThrough = false, OnTop = true, PasswordMode = true;
     public int IdleMinutes = 5;
     public CatStyle Cat = CatStyle.Black;
+    public string CustomSkinId = "";
     public KeyboardStyle Keyboard = KeyboardStyle.Classic;
     public MouseStyle Mouse = MouseStyle.Classic;
     public GamepadStyle Gamepad = GamepadStyle.Xbox;
@@ -40,6 +41,7 @@ internal sealed class Preferences
                 int idle = (int?)root.Attribute("idleMinutes") ?? 5;
                 p.IdleMinutes = Math.Max(0, Math.Min(60, idle));
                 p.Cat = ReadStyle(root, "catStyle", p.Cat);
+                p.CustomSkinId = ((string)root.Attribute("customSkinId") ?? "").Trim();
                 p.Keyboard = ReadStyle(root, "keyboard", p.Keyboard);
                 p.Mouse = ReadStyle(root, "mouse", p.Mouse);
                 p.Gamepad = ReadStyle(root, "gamepad", p.Gamepad);
@@ -65,7 +67,7 @@ internal sealed class Preferences
                 new XAttribute("scale", Scale), new XAttribute("labels", Labels),
                 new XAttribute("clickThrough", ClickThrough), new XAttribute("onTop", OnTop),
                 new XAttribute("passwordMode", PasswordMode), new XAttribute("idleMinutes", IdleMinutes),
-                new XAttribute("catStyle", Cat),
+                new XAttribute("catStyle", Cat), new XAttribute("customSkinId", CustomSkinId ?? ""),
                 new XAttribute("keyboard", Keyboard), new XAttribute("mouse", Mouse),
                 new XAttribute("gamepad", Gamepad), new XAttribute("gamepadMode", Mode));
             string tmp = FileName + ".tmp";

@@ -1,4 +1,5 @@
 using System;
+using System.Collections.Generic;
 using System.ComponentModel;
 using System.Diagnostics;
 using System.Reflection;
@@ -51,6 +52,8 @@ internal sealed class PetWindow : Window
     private readonly Forms.NotifyIcon tray = new Forms.NotifyIcon();
     private readonly Drawing.Icon icon;
     private SettingsWindow settingsWindow;
+    private SkinWorkshopWindow workshopWindow;
+    private List<CustomSkin> customSkins = new List<CustomSkin>();
     private IntPtr hwnd, inputBuffer;
     private Drawing.Rectangle cursorMonitor;
     private bool listening, menuOpen;
@@ -77,6 +80,13 @@ internal sealed class PetWindow : Window
         cat.PasswordModeEnabled = settings.PasswordMode;
         cat.IdleMinutes = settings.IdleMinutes;
         cat.Cat = settings.Cat;
+        ReloadCustomSkins();
+        if (!string.IsNullOrEmpty(settings.CustomSkinId))
+        {
+            CustomSkin savedSkin = FindCustomSkin(settings.CustomSkinId);
+            if (savedSkin != null) cat.ActiveCustomSkin = savedSkin;
+            else settings.CustomSkinId = "";
+        }
         cat.Keyboard = settings.Keyboard;
         cat.Mouse = settings.Mouse;
         cat.Gamepad = settings.Gamepad;
@@ -250,6 +260,102 @@ internal sealed class PetWindow : Window
         item.Click += delegate { action(); };
         return item;
     }
+    private void ReloadCustomSkins()
+    {
+        customSkins = SkinManager.LoadAll();
+        if (!string.IsNullOrEmpty(settings.CustomSkinId))
+        {
+            CustomSkin found = FindCustomSkin(settings.CustomSkinId);
+            cat.ActiveCustomSkin = found;
+            if (found == null) settings.CustomSkinId = "";
+        }
+    }
+
+    private CustomSkin FindCustomSkin(string id)
+    {
+        if (string.IsNullOrEmpty(id)) return null;
+        for (int i = 0; i < customSkins.Count; ++i)
+        {
+            if (string.Equals(customSkins[i].Id, id, StringComparison.OrdinalIgnoreCase))
+                return customSkins[i];
+        }
+        return null;
+    }
+
+    private void ApplyCustomSkin(CustomSkin skin)
+    {
+        if (skin == null)
+        {
+            settings.CustomSkinId = "";
+            cat.ActiveCustomSkin = null;
+        }
+        else
+        {
+            settings.CustomSkinId = skin.Id;
+            cat.ActiveCustomSkin = skin;
+        }
+        cat.InvalidateVisual();
+        Save();
+        if (settingsWindow != null && settingsWindow.IsVisible) settingsWindow.SyncFromState();
+    }
+
+    private void OpenWorkshop(string preferredSkinId)
+    {
+        if (workshopWindow == null)
+        {
+            workshopWindow = new SkinWorkshopWindow(new SkinWorkshopWindow.Callbacks
+            {
+                GetSkins = delegate { return customSkins; },
+                GetActiveSkinId = delegate { return settings.CustomSkinId; },
+                GetBaseCatFallback = delegate { return settings.Cat; },
+                GetKeyboard = delegate { return settings.Keyboard; },
+                GetMouse = delegate { return settings.Mouse; },
+                GetGamepad = delegate { return settings.Gamepad; },
+                ApplySkin = delegate(CustomSkin skin) { ApplyCustomSkin(skin); },
+                ClearCustomSkin = delegate { ApplyCustomSkin(null); },
+                OnSkinMutated = delegate(CustomSkin mutated)
+                {
+                    if (mutated != null)
+                    {
+                        for (int i = 0; i < customSkins.Count; ++i)
+                        {
+                            if (string.Equals(customSkins[i].Id, mutated.Id, StringComparison.OrdinalIgnoreCase))
+                            {
+                                customSkins[i] = mutated;
+                                break;
+                            }
+                        }
+                        if (string.Equals(settings.CustomSkinId, mutated.Id, StringComparison.OrdinalIgnoreCase))
+                        {
+                            cat.ActiveCustomSkin = mutated;
+                            cat.InvalidateVisual();
+                        }
+                    }
+                    if (settingsWindow != null && settingsWindow.IsVisible) settingsWindow.RefreshCustomSkins();
+                },
+                OnSkinListChanged = delegate
+                {
+                    ReloadCustomSkins();
+                    cat.InvalidateVisual();
+                    if (settingsWindow != null && settingsWindow.IsVisible) settingsWindow.SyncFromState();
+                }
+            });
+        }
+        workshopWindow.OpenAndRefresh(preferredSkinId);
+        if (!workshopWindow.IsVisible)
+        {
+            Rect area = LogicalArea(Forms.Screen.FromPoint(Forms.Cursor.Position).WorkingArea);
+            double w = workshopWindow.Width;
+            double h = workshopWindow.Height;
+            double x = Math.Max(area.Left + 12, area.Left + (area.Width - w) * 0.5);
+            double y = Math.Max(area.Top + 12, area.Top + (area.Height - h) * 0.5);
+            workshopWindow.Left = x;
+            workshopWindow.Top = y;
+            workshopWindow.Show();
+        }
+        workshopWindow.Activate();
+    }
+
     private void OpenSettings()
     {
         if (settingsWindow == null)
@@ -260,8 +366,14 @@ internal sealed class PetWindow : Window
                 SetCat = delegate(CatStyle next)
                 {
                     settings.Cat = cat.Cat = next;
+                    settings.CustomSkinId = "";
+                    cat.ActiveCustomSkin = null;
                     cat.InvalidateVisual(); Save();
                 },
+                GetCustomSkins = delegate { return customSkins; },
+                GetCustomSkinId = delegate { return settings.CustomSkinId; },
+                SetCustomSkin = delegate(CustomSkin skin) { ApplyCustomSkin(skin); },
+                OpenWorkshop = delegate(string skinId) { OpenWorkshop(skinId); },
                 GetScale = delegate { return settings.Scale; },
                 SetScale = delegate(double next)
                 {
@@ -280,12 +392,14 @@ internal sealed class PetWindow : Window
                 {
                     settings.Keyboard = cat.Keyboard = next;
                     cat.InvalidateVisual(); Save();
+                    if (workshopWindow != null) workshopWindow.SyncPeripherals(settings.Keyboard, settings.Mouse, settings.Gamepad);
                 },
                 GetMouse = delegate { return settings.Mouse; },
                 SetMouse = delegate(MouseStyle next)
                 {
                     settings.Mouse = cat.Mouse = next;
                     cat.InvalidateVisual(); Save();
+                    if (workshopWindow != null) workshopWindow.SyncPeripherals(settings.Keyboard, settings.Mouse, settings.Gamepad);
                 },
                 GetGamepadMode = delegate { return settings.Mode; },
                 SetGamepadMode = delegate(GamepadMode next)
@@ -299,6 +413,7 @@ internal sealed class PetWindow : Window
                 {
                     settings.Gamepad = cat.Gamepad = next;
                     cat.InvalidateVisual(); Save();
+                    if (workshopWindow != null) workshopWindow.SyncPeripherals(settings.Keyboard, settings.Mouse, settings.Gamepad);
                 },
                 GetPasswordMode = delegate { return settings.PasswordMode; },
                 SetPasswordMode = delegate(bool on)
@@ -344,7 +459,7 @@ internal sealed class PetWindow : Window
         {
             Rect area = LogicalArea(Forms.Screen.FromPoint(Forms.Cursor.Position).WorkingArea);
             double w = settingsWindow.Width;
-            double h = 510;
+            double h = customSkins.Count > 0 ? 576 : 510;
             double x = Math.Max(area.Left + 12, Math.Min(area.Right - w - 12, area.Right - w - 24));
             double y = Math.Max(area.Top + 12, Math.Min(area.Bottom - h - 12, area.Bottom - h - 24));
             settingsWindow.Left = x;
@@ -360,6 +475,7 @@ internal sealed class PetWindow : Window
         var openItem = Item("打开设置…", false, OpenSettings);
         openItem.Font = new Drawing.Font(menu.Font, Drawing.FontStyle.Bold);
         menu.Items.Add(openItem);
+        menu.Items.Add(Item("皮肤工坊 (PNG 贴图)…", false, delegate { OpenWorkshop(settings.CustomSkinId); }));
         menu.Items.Add(new Forms.ToolStripSeparator());
         menu.Items.Add(Item("回到屏幕右下角", false, delegate { DockToCorner(); Reveal(); Save(); }));
         menu.Items.Add(Item(IsVisible ? "暂时隐藏" : "显示小猫", false, delegate
@@ -372,6 +488,13 @@ internal sealed class PetWindow : Window
     private void CleanUp()
     {
         timer.Stop(); Save();
+        if (workshopWindow != null)
+        {
+            SkinWorkshopWindow w = workshopWindow;
+            workshopWindow = null;
+            w.AllowClose = true;
+            try { w.Close(); } catch (Exception) { }
+        }
         if (settingsWindow != null)
         {
             SettingsWindow w = settingsWindow;

@@ -17,6 +17,10 @@ internal sealed class SettingsWindow : Window
     {
         public Func<CatStyle> GetCat;
         public Action<CatStyle> SetCat;
+        public Func<List<CustomSkin>> GetCustomSkins;
+        public Func<string> GetCustomSkinId;
+        public Action<CustomSkin> SetCustomSkin;
+        public Action<string> OpenWorkshop;
         public Func<double> GetScale;
         public Action<double> SetScale;
         public Action CommitScale;
@@ -136,6 +140,9 @@ internal sealed class SettingsWindow : Window
     private readonly List<Shape> navIconShapes = new List<Shape>();
     private readonly List<UIElement> tabPanels = new List<UIElement>();
     private readonly List<SelectableCard> catCards = new List<SelectableCard>();
+    private readonly List<SelectableCard> customSkinCards = new List<SelectableCard>();
+    private Border customSkinHost;
+    private StackPanel customSkinStrip;
     private readonly List<SelectableCard> kbCards = new List<SelectableCard>();
     private readonly List<SelectableCard> mouseCards = new List<SelectableCard>();
     private readonly List<SelectableCard> gpCards = new List<SelectableCard>();
@@ -622,9 +629,49 @@ internal sealed class SettingsWindow : Window
     {
         StackPanel stack = new StackPanel();
 
-        // 1. Cats 4x2 grid
+        // 1. Cats 4x2 grid + Skin Workshop (PNG) entry & custom skins strip
         StackPanel catSec = new StackPanel();
-        catSec.Children.Add(MakeSectionHeader("猫咪样式", "点击即可切换"));
+        DockPanel catHeader = new DockPanel { Margin = new Thickness(0, 0, 0, 8) };
+        TextBlock catTitle = new TextBlock
+        {
+            Text = "猫咪样式",
+            FontSize = 12.5,
+            FontWeight = FontWeights.Bold,
+            Foreground = TextPrimary,
+            VerticalAlignment = VerticalAlignment.Center
+        };
+        DockPanel.SetDock(catTitle, Dock.Left);
+        catHeader.Children.Add(catTitle);
+
+        Border workshopBtn = new Border
+        {
+            CornerRadius = new CornerRadius(9),
+            Padding = new Thickness(10, 3, 10, 3),
+            Background = Gradient(0xFFE092, 0xF5B538, 0, 0, 0, 1),
+            BorderBrush = BrushOf(0xDF981B),
+            BorderThickness = new Thickness(1),
+            Cursor = Cursors.Hand,
+            HorizontalAlignment = HorizontalAlignment.Right,
+            ToolTip = "打开进阶 PNG 贴图皮肤工坊，导入/微调透明贴图并打包分享",
+            Child = new TextBlock
+            {
+                Text = "皮肤工坊 (PNG) →",
+                FontSize = 11,
+                FontWeight = FontWeights.Bold,
+                Foreground = BrushOf(0x4E2E05)
+            }
+        };
+        workshopBtn.MouseEnter += delegate { workshopBtn.Background = Gradient(0xFFE8AB, 0xF7C04E, 0, 0, 0, 1); };
+        workshopBtn.MouseLeave += delegate { workshopBtn.Background = Gradient(0xFFE092, 0xF5B538, 0, 0, 0, 1); };
+        workshopBtn.MouseLeftButtonUp += delegate
+        {
+            string activeId = cb.GetCustomSkinId != null ? cb.GetCustomSkinId() : "";
+            if (cb.OpenWorkshop != null) cb.OpenWorkshop(activeId);
+        };
+        DockPanel.SetDock(workshopBtn, Dock.Right);
+        catHeader.Children.Add(workshopBtn);
+        catSec.Children.Add(catHeader);
+
         UniformGrid catGrid = new UniformGrid { Columns = 4 };
         var catDefs = new[]
         {
@@ -644,11 +691,57 @@ internal sealed class SettingsWindow : Window
             {
                 if (cb.SetCat != null) cb.SetCat(st);
                 UpdateCardGroup(catCards, st);
+                UpdateCardGroup(customSkinCards, null);
             }, true);
             catCards.Add(card);
             catGrid.Children.Add(card.Root);
         }
         catSec.Children.Add(catGrid);
+
+        // Compact horizontal strip for user-created PNG skins (shown when custom skins exist)
+        StackPanel customWrap = new StackPanel();
+        DockPanel customHead = new DockPanel { Margin = new Thickness(0, 7, 0, 4) };
+        TextBlock customTitle = new TextBlock
+        {
+            Text = "我的 PNG 皮肤",
+            FontSize = 11,
+            FontWeight = FontWeights.Bold,
+            Foreground = TextSecondary,
+            VerticalAlignment = VerticalAlignment.Center
+        };
+        DockPanel.SetDock(customTitle, Dock.Left);
+        customHead.Children.Add(customTitle);
+        TextBlock customTip = new TextBlock
+        {
+            Text = "点击切换 · 双击编辑",
+            FontSize = 10,
+            Foreground = TextSecondary,
+            VerticalAlignment = VerticalAlignment.Center,
+            HorizontalAlignment = HorizontalAlignment.Right
+        };
+        DockPanel.SetDock(customTip, Dock.Right);
+        customHead.Children.Add(customTip);
+        customWrap.Children.Add(customHead);
+
+        customSkinStrip = new StackPanel { Orientation = Orientation.Horizontal };
+        ScrollViewer customScroll = new ScrollViewer
+        {
+            HorizontalScrollBarVisibility = ScrollBarVisibility.Auto,
+            VerticalScrollBarVisibility = ScrollBarVisibility.Disabled,
+            Content = customSkinStrip
+        };
+        customWrap.Children.Add(customScroll);
+
+        customSkinHost = new Border
+        {
+            BorderBrush = DividerBrush,
+            BorderThickness = new Thickness(0, 1, 0, 0),
+            Margin = new Thickness(0, 6, 0, 0),
+            Visibility = Visibility.Collapsed,
+            Child = customWrap
+        };
+        catSec.Children.Add(customSkinHost);
+
         stack.Children.Add(MakeSectionCard(catSec));
 
         // 2. Scale slider + quick presets
@@ -1256,12 +1349,121 @@ internal sealed class SettingsWindow : Window
         }
     }
 
+    private static Image RenderCustomSkinThumb(CustomSkin skin, double width, double height)
+    {
+        DrawingGroup art = new DrawingGroup();
+        using (DrawingContext dc = art.Open())
+        {
+            CustomSkinRenderer.DrawPortrait(dc, skin);
+        }
+        art.Freeze();
+        DrawingImage img = new DrawingImage(art);
+        img.Freeze();
+        return new Image
+        {
+            Source = img,
+            Width = width,
+            Height = height,
+            Stretch = Stretch.Uniform,
+            SnapsToDevicePixels = false
+        };
+    }
+
+    public void RefreshCustomSkins()
+    {
+        if (customSkinStrip == null || customSkinHost == null) return;
+        customSkinStrip.Children.Clear();
+        customSkinCards.Clear();
+
+        List<CustomSkin> skins = cb.GetCustomSkins != null ? cb.GetCustomSkins() : null;
+        if (skins == null || skins.Count == 0)
+        {
+            customSkinHost.Visibility = Visibility.Collapsed;
+            return;
+        }
+
+        customSkinHost.Visibility = Visibility.Visible;
+        for (int i = 0; i < skins.Count; ++i)
+        {
+            CustomSkin skin = skins[i];
+            Grid content = new Grid();
+            StackPanel sp = new StackPanel { Orientation = Orientation.Horizontal, VerticalAlignment = VerticalAlignment.Center };
+            sp.Children.Add(RenderCustomSkinThumb(skin, 26, 26));
+            sp.Children.Add(new TextBlock
+            {
+                Text = skin.Name,
+                FontSize = 11,
+                FontWeight = FontWeights.SemiBold,
+                Foreground = BrushOf(0x4E3F30),
+                VerticalAlignment = VerticalAlignment.Center,
+                Margin = new Thickness(5, 0, 8, 0),
+                MaxWidth = 84,
+                TextTrimming = TextTrimming.CharacterEllipsis
+            });
+            content.Children.Add(sp);
+
+            Ellipse dot = new Ellipse
+            {
+                Width = 6,
+                Height = 6,
+                Fill = HoneyDot,
+                HorizontalAlignment = HorizontalAlignment.Right,
+                VerticalAlignment = VerticalAlignment.Top,
+                Visibility = Visibility.Collapsed
+            };
+            content.Children.Add(dot);
+
+            Border root = new Border
+            {
+                Background = ItemBg,
+                BorderBrush = ItemBorder,
+                BorderThickness = new Thickness(1.5),
+                CornerRadius = new CornerRadius(9),
+                Padding = new Thickness(6, 4, 6, 4),
+                Margin = new Thickness(0, 0, 6, 2),
+                Cursor = Cursors.Hand,
+                Child = content
+            };
+            CustomSkin captured = skin;
+            root.MouseLeftButtonDown += delegate(object s, MouseButtonEventArgs e)
+            {
+                if (e.ClickCount >= 2 && cb.OpenWorkshop != null)
+                {
+                    cb.OpenWorkshop(captured.Id);
+                    e.Handled = true;
+                }
+            };
+            root.MouseLeftButtonUp += delegate
+            {
+                if (cb.SetCustomSkin != null) cb.SetCustomSkin(captured);
+                UpdateCardGroup(catCards, null);
+                UpdateCardGroup(customSkinCards, captured.Id);
+            };
+            customSkinCards.Add(new SelectableCard { Root = root, Dot = dot, Value = skin.Id });
+            customSkinStrip.Children.Add(root);
+        }
+
+        string activeId = cb.GetCustomSkinId != null ? cb.GetCustomSkinId() : "";
+        UpdateCardGroup(customSkinCards, string.IsNullOrEmpty(activeId) ? null : (object)activeId);
+    }
+
     public void SyncFromState()
     {
         syncing = true;
         try
         {
-            if (cb.GetCat != null) UpdateCardGroup(catCards, cb.GetCat());
+            RefreshCustomSkins();
+            string activeCustomId = cb.GetCustomSkinId != null ? cb.GetCustomSkinId() : "";
+            if (!string.IsNullOrEmpty(activeCustomId))
+            {
+                UpdateCardGroup(catCards, null);
+                UpdateCardGroup(customSkinCards, activeCustomId);
+            }
+            else
+            {
+                if (cb.GetCat != null) UpdateCardGroup(catCards, cb.GetCat());
+                UpdateCardGroup(customSkinCards, null);
+            }
             if (cb.GetKeyboard != null) UpdateCardGroup(kbCards, cb.GetKeyboard());
             if (cb.GetMouse != null) UpdateCardGroup(mouseCards, cb.GetMouse());
             if (cb.GetGamepad != null) UpdateCardGroup(gpCards, cb.GetGamepad());

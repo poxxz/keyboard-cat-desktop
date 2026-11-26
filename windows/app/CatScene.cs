@@ -43,6 +43,7 @@ internal sealed class CatScene : FrameworkElement
     public bool PasswordModeEnabled = true;
     public int IdleMinutes = 5;
     public CatStyle Cat = CatStyle.Black;
+    public CustomSkin ActiveCustomSkin;
     public KeyboardStyle Keyboard = KeyboardStyle.Classic;
     public MouseStyle Mouse = MouseStyle.Classic;
     public GamepadStyle Gamepad = GamepadStyle.Xbox;
@@ -254,7 +255,9 @@ internal sealed class CatScene : FrameworkElement
             MarkMouseActivity(now);
         }
         monitorPosition = positionOnMonitor;
-        bool onHead = CatArt.ContainsHead(Cat,p,time,gazeX,gazeY,left);
+        bool onHead = ActiveCustomSkin != null
+            ? CustomSkinRenderer.ContainsHead(ActiveCustomSkin, p, time, gazeX, gazeY, left)
+            : CatArt.ContainsHead(Cat, p, time, gazeX, gazeY, left);
         if (onHead && !headHovered)
         {
             lastPet = now;
@@ -728,13 +731,16 @@ internal sealed class CatScene : FrameworkElement
         if (showingGamepad)
         {
             double padDrop = 26.0 * sleepBlend;
-            CatArt.DrawStyled(dc, Cat, time, gazeX, gazeY, blink, left, right, leftActivity, rightActivity, 0.25,
-                delegate(DrawingContext g)
-                {
-                    if (padDrop > .01) g.PushTransform(new TranslateTransform(0, padDrop));
-                    GamepadArt.Draw(g, Gamepad, pad);
-                    if (padDrop > .01) g.Pop();
-                }, mood);
+            Action<DrawingContext> drawPad = delegate(DrawingContext g)
+            {
+                if (padDrop > .01) g.PushTransform(new TranslateTransform(0, padDrop));
+                GamepadArt.Draw(g, Gamepad, pad);
+                if (padDrop > .01) g.Pop();
+            };
+            if (ActiveCustomSkin != null)
+                CustomSkinRenderer.Draw(dc, ActiveCustomSkin, time, gazeX, gazeY, blink, left, right, leftActivity, rightActivity, 0.25, drawPad, mood);
+            else
+                CatArt.DrawStyled(dc, Cat, time, gazeX, gazeY, blink, left, right, leftActivity, rightActivity, 0.25, drawPad, mood);
         }
         else
         {
@@ -742,10 +748,13 @@ internal sealed class CatScene : FrameworkElement
             double rGlow = InPasswordMode ? 0 : ClickGlow(rightDown, rightClickAt);
             DeskArt.DrawDesk(dc, InPasswordMode ? null : highlights, lGlow, rGlow,
                 Keyboard, Mouse, mouseOffset);
-            CatArt.DrawStyled(dc, Cat, time, gazeX, gazeY, blink, left, right, leftActivity, rightActivity, -1, null, mood);
+            if (ActiveCustomSkin != null)
+                CustomSkinRenderer.Draw(dc, ActiveCustomSkin, time, gazeX, gazeY, blink, left, right, leftActivity, rightActivity, -1, null, mood);
+            else
+                CatArt.DrawStyled(dc, Cat, time, gazeX, gazeY, blink, left, right, leftActivity, rightActivity, -1, null, mood);
             if (passwordBlend > .005) DeskArt.DrawPasswordCover(dc, passwordBlend);
         }
-        if (sleepBlend > .35)
+        if (sleepBlend > .35 && (ActiveCustomSkin == null || ActiveCustomSkin.ShowMoodEffects))
         {
             CatArt.DrawZzz(dc, time, 258, 144, Smooth((sleepBlend - .35) / .5));
         }

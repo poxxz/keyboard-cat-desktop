@@ -307,4 +307,65 @@ internal static class BobtailArt
         dc.Pop();
         dc.Pop();
     }
+
+    internal static void DrawTailPart(DrawingContext dc, double time, CatMood mood)
+    {
+        double sleep = Math.Max(0, Math.Min(1, mood.Sleep));
+        double crouch = Math.Max(0, Math.Min(1, mood.Crouch));
+        double tailSpeed = 1.8 + mood.Anger * 3.0 + crouch * 2.5 - sleep * 1.0;
+        double tailAmp = 3.0 + mood.Anger * 3.0 + crouch * 3.5;
+        dc.PushTransform(new TranslateTransform(249, 207 + 8 * sleep));
+        dc.PushTransform(new RotateTransform(Math.Sin(time * tailSpeed) * tailAmp));
+        dc.DrawDrawing(TailCoat);
+        dc.Pop();
+        dc.Pop();
+    }
+
+    internal static void DrawBodyPart(DrawingContext dc, double lean, double sxScale, double syScale)
+    {
+        double bodyYShift = (1.0 - syScale) * (235.0 - BodyTop);
+        dc.PushTransform(new MatrixTransform(1, 0, .285 * lean, 1, -233 * .285 * lean, 0));
+        dc.PushTransform(new TranslateTransform(214, BodyTop + bodyYShift));
+        dc.PushTransform(new ScaleTransform(BodyWidth * sxScale, syScale));
+        dc.DrawDrawing(BodyCoat);
+        dc.Pop();
+        dc.Pop();
+        dc.Pop();
+    }
+
+    internal static Point GetShoulderPoint(bool left, double lean, double sxScale, double syScale)
+    {
+        double bodyYShift = (1.0 - syScale) * (235.0 - BodyTop);
+        double sy = BodyTop + bodyYShift + (left ? (17.0 - 5.0 * lean) : 17.0) * syScale;
+        double shear = (sy - 233.0) * 0.285 * lean;
+        double x = left ? 214.0 - (22.0 * BodyWidth * sxScale + 2.5 * lean) + shear
+                        : 214.0 + 22.0 * BodyWidth * sxScale + shear;
+        return new Point(x, sy);
+    }
+
+    internal static void DrawArmPart(DrawingContext dc, bool left, Point paw, double lean, double activity,
+                                     double pawRaised, double sxScale, double syScale)
+    {
+        Point shoulder = GetShoulderPoint(left, lean, sxScale, syScale);
+        DrawArm(dc, shoulder, paw, left ? -1 : 1, activity, pawRaised);
+    }
+
+    internal static void DrawHeadPart(DrawingContext dc, double gazeX, double gazeY, double blink,
+                                      double anger, double angerBreath, double crouch)
+    {
+        dc.PushTransform(new ScaleTransform(.95, .99));
+        DrawHead(dc, gazeX, gazeY, blink, anger, angerBreath, crouch);
+        dc.Pop();
+    }
+
+    internal static void ComputeHeadPose(double time, double gazeX, double gazeY, double lean, double sleep, double crouch,
+                                         out double hx, out double hy, out double rot)
+    {
+        double breathFreq = sleep > 0.5 ? 1.15 : 1.7;
+        double breathAmp = sleep > 0.5 ? 1.6 : 0.6;
+        hx = 214.0 - 32.8 * lean + 2.5 * gazeX * (1 - sleep) - 2.0 * sleep;
+        double hyNorm = BodyTop - 2 + 2 * gazeY + Math.Sin(time * breathFreq) * breathAmp + 12.0 * crouch;
+        hy = hyNorm + (186 + Math.Sin(time * 1.15) * 1.8 - hyNorm) * sleep;
+        rot = (3.2 + 2.8 * gazeX - 2.4 * lean) * (1 - sleep) - 8.5 * sleep;
+    }
 }

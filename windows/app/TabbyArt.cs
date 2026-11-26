@@ -469,4 +469,75 @@ internal static class TabbyArt
         dc.Pop();
         dc.Pop();
     }
+
+    internal static void DrawTailPart(DrawingContext dc, double time, CatMood mood)
+    {
+        double sleep = Math.Max(0, Math.Min(1, mood.Sleep));
+        double crouch = Math.Max(0, Math.Min(1, mood.Crouch));
+        double tailSpeed = 1.8 + mood.Anger * 2.8 + crouch * 2.2 - sleep * 1.1;
+        double tailAmp = 2.1 + mood.Anger * 2.0 + crouch * 2.5;
+        dc.PushTransform(new TranslateTransform(187, 184 + 14 * sleep));
+        dc.PushTransform(new RotateTransform(186 + Math.Sin(time * tailSpeed) * tailAmp));
+        dc.PushTransform(new ScaleTransform(1.1, 1.22));
+        dc.DrawDrawing(TailCoat);
+        dc.Pop();
+        dc.Pop();
+        dc.Pop();
+    }
+
+    internal static void DrawBodyPart(DrawingContext dc, double lean, double sxScale, double syScale)
+    {
+        double bodyYShift = (1.0 - syScale) * (235.0 - BodyTop);
+        PushBodyPose(dc, lean, sxScale, syScale, bodyYShift);
+        dc.DrawDrawing(BodyCoat);
+        dc.Pop();
+        dc.Pop();
+        dc.Pop();
+    }
+
+    internal static void DrawRuffPart(DrawingContext dc, double lean, double sxScale, double syScale, double sleep)
+    {
+        double bodyYShift = (1.0 - syScale) * (235.0 - BodyTop);
+        PushBodyPose(dc, lean, sxScale * (1.0 - 0.22 * sleep), syScale, bodyYShift);
+        dc.DrawGeometry(RuffFur, null, Ruff);
+        dc.Pop();
+        dc.Pop();
+        dc.Pop();
+    }
+
+    internal static Point GetShoulderPoint(bool left, double lean, double sxScale, double syScale)
+    {
+        double bodyYShift = (1.0 - syScale) * (235.0 - BodyTop);
+        double sy = BodyTop + bodyYShift + (left ? (17.0 - 5.0 * lean) : 17.0) * syScale;
+        double shear = (sy - 233.0) * 0.285 * lean;
+        double x = left ? 214.0 - (22.0 * BodyWidth * sxScale + 2.5 * lean) + shear
+                        : 214.0 + 22.0 * BodyWidth * sxScale + shear;
+        return new Point(x, sy);
+    }
+
+    internal static void DrawArmPart(DrawingContext dc, bool left, Point paw, double lean, double activity,
+                                     double pawRaised, double sxScale, double syScale)
+    {
+        Point shoulder = GetShoulderPoint(left, lean, sxScale, syScale);
+        DrawArm(dc, shoulder, paw, left ? -1 : 1, activity, pawRaised);
+    }
+
+    internal static void DrawHeadPart(DrawingContext dc, double gazeX, double gazeY, double blink,
+                                      double anger, double angerBreath, double crouch)
+    {
+        dc.PushTransform(new ScaleTransform(1.055, 1));
+        DrawHead(dc, gazeX, gazeY, blink, anger, angerBreath, crouch);
+        dc.Pop();
+    }
+
+    internal static void ComputeHeadPose(double time, double gazeX, double gazeY, double lean, double sleep, double crouch,
+                                         out double hx, out double hy, out double rot)
+    {
+        double breathFreq = sleep > 0.5 ? 1.15 : 1.7;
+        double breathAmp = sleep > 0.5 ? 1.6 : 0.6;
+        hx = 214.0 - 33.5 * lean + 2.5 * gazeX * (1 - sleep) - 2.0 * sleep;
+        double hyNorm = BodyTop - 2 + 2 * gazeY + Math.Sin(time * breathFreq) * breathAmp + 12.0 * crouch;
+        hy = hyNorm + (186 + Math.Sin(time * 1.15) * 1.8 - hyNorm) * sleep;
+        rot = (-2.25 + 2.8 * gazeX - 2.4 * lean) * (1 - sleep) - 8.5 * sleep;
+    }
 }
