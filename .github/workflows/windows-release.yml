@@ -32,11 +32,17 @@ jobs:
         env:
           GH_TOKEN: ${{ github.token }}
         run: |
+          $isOfficial = ($env:GITHUB_REF -eq 'refs/heads/main' -or $env:GITHUB_REF -like 'refs/tags/v*')
           $exe = (Resolve-Path windows/build/键盘小黑猫.exe).Path
           $version = [Diagnostics.FileVersionInfo]::GetVersionInfo($exe)
           $baseVer = "$($version.FileMajorPart).$($version.FileMinorPart).$($version.FileBuildPart)"
-          $tag = if ($version.FilePrivatePart -gt 0) { "v$baseVer-v$($version.FilePrivatePart)" } else { "v$baseVer" }
-          $title = if ($version.FilePrivatePart -gt 0) { "键盘小黑猫 v$baseVer v$($version.FilePrivatePart)" } else { "键盘小黑猫 v$baseVer" }
+          $baseTag = if ($version.FilePrivatePart -gt 0) { "v$baseVer-v$($version.FilePrivatePart)" } else { "v$baseVer" }
+          $tag = if ($isOfficial) { $baseTag } else { "$baseTag-test" }
+          $title = if ($isOfficial) {
+            if ($version.FilePrivatePart -gt 0) { "键盘小黑猫 v$baseVer v$($version.FilePrivatePart)" } else { "键盘小黑猫 v$baseVer" }
+          } else {
+            "键盘小黑猫 v$baseVer 测试包"
+          }
           $installer = (Get-ChildItem windows/build -Filter '*Windows安装包.exe').FullName
           if (-not $installer) { throw 'Installer not found in windows/build.' }
           # Ship English (ASCII) names for the release assets: the Chinese
@@ -52,10 +58,16 @@ jobs:
             gh release delete $tag --yes --cleanup-tag
             Start-Sleep -Seconds 3
           }
-          $notes = "Windows 正式构建（$title），含 KeyboardCat.exe（免安装版）与安装包。本版更新：1) 更新源切至 Gitee 优先（自动回退 GitHub），新增每次启动后台检测更新（托盘气泡 + 设置页红点，可关闭）；2) 全新纯矢量模块化「皮肤工坊」，支持自定义短毛/长毛底模、毛色、脸/身/爪/尾花纹、单/异瞳眼睛与配饰，支持导出/导入 .catskin 皮肤文件分享；3) 新增猫身悬停动画抚摸小手，轻揉开心冒爱心与星星，揉太快变不耐烦，左键长按 0.35s 进度环拖动小猫。"
+          $notes = "Windows 构建（$title），含 KeyboardCat.exe（免安装版）与安装包。本版更新：1) 更新源切至 Gitee 优先（自动回退 GitHub），新增每次启动后台检测更新（托盘气泡 + 设置页红点，可关闭）；2) 全新纯矢量「皮肤工坊」，内置英短蓝猫/蓝白/美短/布偶/折耳等 4 大底模、11 种脸纹、6 种胸腹、6 种身纹、5 种前爪、6 种尾型与异瞳/配饰，支持 .catskin 导出导入分享，默认首选「星期三」；3) 新增悬停动画抚摸小手（轻揉开心冒爱心星星，揉太快不耐烦）与长按 0.35s 侧身自然提起并紧抱键鼠拖动；4) 右键猫咪直接从猫咪当前位置旁打开设置窗口。"
+          $extraArgs = @()
+          if (-not $isOfficial) {
+            $extraArgs += '--prerelease'
+            $extraArgs += '--target'
+            $extraArgs += $env:GITHUB_SHA
+          }
           $created = $false
           for ($attempt = 1; $attempt -le 4; $attempt++) {
-            gh release create $tag --title $title --notes $notes $exeEn $installerEn
+            gh release create $tag --title $title --notes $notes @extraArgs $exeEn $installerEn
             if ($LASTEXITCODE -eq 0) { $created = $true; break }
             Write-Host "gh release create attempt $attempt failed ($LASTEXITCODE), retrying in 6s..."
             Start-Sleep -Seconds 6
@@ -74,6 +86,10 @@ jobs:
         env:
           GITEE_TOKEN: ${{ secrets.GITEE_TOKEN }}
         run: |
+          if ($env:GITHUB_REF -ne 'refs/heads/main' -and $env:GITHUB_REF -notlike 'refs/tags/v*') {
+            Write-Host 'Feature branch test build; skipping Gitee release sync.'
+            exit 0
+          }
           if ([string]::IsNullOrWhiteSpace($env:GITEE_TOKEN)) {
             Write-Host 'GITEE_TOKEN secret is not configured; skipping Gitee release sync.'
             exit 0
