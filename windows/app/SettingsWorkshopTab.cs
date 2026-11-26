@@ -242,7 +242,9 @@ internal sealed partial class SettingsWindow
             new { Key = "silver", Label = "银渐层" },
             new { Key = "siamese", Label = "暹罗" },
             new { Key = "calico", Label = "三花" },
-            new { Key = "tabby", Label = "虎斑" }
+            new { Key = "tabby", Label = "虎斑" },
+            new { Key = "cow", Label = "奶牛" },
+            new { Key = "tuxedo", Label = "警长" }
         };
         for (int i = 0; i < templates.Length; ++i)
         {
@@ -251,8 +253,8 @@ internal sealed partial class SettingsWindow
             Border chip = new Border
             {
                 CornerRadius = new CornerRadius(6.5),
-                Padding = new Thickness(6, 2.5, 6, 2.5),
-                Margin = new Thickness(0, 0, 4, 4),
+                Padding = new Thickness(5.5, 2, 5.5, 2),
+                Margin = new Thickness(0, 0, 3.5, 3.5),
                 Background = ItemBg,
                 BorderBrush = ItemBorder,
                 BorderThickness = new Thickness(1),

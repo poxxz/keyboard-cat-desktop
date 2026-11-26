@@ -212,6 +212,32 @@ internal sealed class CatSkinData
                 d.AccessoryColor = "#5CC4A0";
                 return d;
 
+            case "cow":
+                d.Name = "奶牛猫";
+                d.BodyBase = SkinBodyBase.ShortHair;
+                d.FurColor = "#FAF8F4"; d.AccentColor = "#26252A"; d.BellyColor = "#FAF8F4";
+                d.PawColor = "#FAF8F4"; d.InnerEarColor = "#F2B2B0"; d.NoseColor = "#EA9498";
+                d.WhiskerColor = "#B8B2AA"; d.LeftEyeColor = "#9AD64C"; d.RightEyeColor = "#9AD64C";
+                d.PupilStyle = SkinPupilStyle.BeadMatte;
+                d.FacePattern = SkinFacePattern.CowSpots; d.BellyStyle = SkinBellyStyle.None;
+                d.BodyPattern = SkinBodyPattern.Patches; d.PawStyle = SkinPawStyle.BodyColor;
+                d.TailStyle = SkinTailStyle.DarkTip; d.Accessory = SkinAccessory.CollarBell;
+                d.AccessoryColor = "#E46652";
+                return d;
+
+            case "tuxedo":
+                d.Name = "黑警长奶牛";
+                d.BodyBase = SkinBodyBase.ShortHair;
+                d.FurColor = "#26252A"; d.AccentColor = "#1B1A1E"; d.BellyColor = "#FAF8F4";
+                d.PawColor = "#FAF8F4"; d.InnerEarColor = "#E6A6A4"; d.NoseColor = "#E49498";
+                d.WhiskerColor = "#F4F2EE"; d.LeftEyeColor = "#F0B832"; d.RightEyeColor = "#F0B832";
+                d.PupilStyle = SkinPupilStyle.RoundCute;
+                d.FacePattern = SkinFacePattern.Tuxedo; d.BellyStyle = SkinBellyStyle.FullBelly;
+                d.BodyPattern = SkinBodyPattern.None; d.PawStyle = SkinPawStyle.Socks;
+                d.TailStyle = SkinTailStyle.LightTip; d.Accessory = SkinAccessory.BowTie;
+                d.AccessoryColor = "#E46652";
+                return d;
+
             case "wednesday": return FromBuiltIn(CatStyle.Wednesday, "星期三二创");
             case "ginger": return FromBuiltIn(CatStyle.Ginger, "奶油橘二创");
             case "coffee": return FromBuiltIn(CatStyle.Coffee, "咖啡二创");
