@@ -17,6 +17,8 @@ jobs:
     runs-on: windows-latest
     steps:
       - uses: actions/checkout@v4
+        with:
+          fetch-depth: 0
 
       - name: Install NSIS
         run: choco install nsis -y
@@ -50,7 +52,7 @@ jobs:
             gh release delete $tag --yes --cleanup-tag
             Start-Sleep -Seconds 3
           }
-          $notes = "Windows 正式构建（$title），含 KeyboardCat.exe（免安装版）与安装包。本版更新：1) 全猫种极限拉扯肩部连续与色差优化，重绘咖啡开脸虎斑面罩并统一多款猫咪竖椭圆瞳仁；2) 密码防偷窥模式支持网页与桌面 exe 应用，触发后闭眼停爪并覆盖请勿偷窥磨砂罩；3) 连续快速打字动态流汗与呼吸灯愤怒表情（兼容手柄模式）；4) 闲置自动随机趴睡（Zzz）或大幅度抓虫子互动；5) 全新 2K 高清奶油风模块化设置页（三标签页高度统一不跳动），新增开机自启与 GitHub 正式版一键检测更新（支持 4 段与 -v2 后缀版本比对及安装后自动清理）。"
+          $notes = "Windows 正式构建（$title），含 KeyboardCat.exe（免安装版）与安装包。本版更新：1) 更新源切至 Gitee 优先（自动回退 GitHub），新增每次启动后台检测更新（托盘气泡 + 设置页红点，可关闭）；2) 全新纯矢量模块化「皮肤工坊」，支持自定义短毛/长毛底模、毛色、脸/身/爪/尾花纹、单/异瞳眼睛与配饰，支持导出/导入 .catskin 皮肤文件分享；3) 新增猫身悬停动画抚摸小手，轻揉开心冒爱心与星星，揉太快变不耐烦，左键长按 0.35s 进度环拖动小猫。"
           $created = $false
           for ($attempt = 1; $attempt -le 4; $attempt++) {
             gh release create $tag --title $title --notes $notes $exeEn $installerEn
@@ -66,3 +68,63 @@ jobs:
             if ($assets -notcontains $name) { throw "Asset $name is missing from release $tag." }
           }
           Write-Host "Release $tag has both assets."
+
+      - name: Sync Release and assets to Gitee
+        shell: pwsh
+        env:
+          GITEE_TOKEN: ${{ secrets.GITEE_TOKEN }}
+        run: |
+          if ([string]::IsNullOrWhiteSpace($env:GITEE_TOKEN)) {
+            Write-Host 'GITEE_TOKEN secret is not configured; skipping Gitee release sync.'
+            exit 0
+          }
+          $owner = 'poxxz'
+          $repo = 'keyboard-cat-desktop'
+          $exe = (Resolve-Path windows/build/键盘小黑猫.exe).Path
+          $version = [Diagnostics.FileVersionInfo]::GetVersionInfo($exe)
+          $baseVer = "$($version.FileMajorPart).$($version.FileMinorPart).$($version.FileBuildPart)"
+          $tag = if ($version.FilePrivatePart -gt 0) { "v$baseVer-v$($version.FilePrivatePart)" } else { "v$baseVer" }
+          $title = if ($version.FilePrivatePart -gt 0) { "键盘小黑猫 v$baseVer v$($version.FilePrivatePart)" } else { "键盘小黑猫 v$baseVer" }
+          $exeEn = Join-Path (Split-Path $exe) 'KeyboardCat.exe'
+          $installerEn = Join-Path (Split-Path $exe) "KeyboardCat-$baseVer-Windows-Setup.exe"
+          $notes = "Windows 正式构建（$title），含 KeyboardCat.exe（免安装版）与安装包。支持国内 Gitee 更新检测、纯矢量皮肤工坊与抚摸互动/长按拖动。"
+
+          # Ensure branch and tag exist on Gitee before creating the Gitee Release.
+          git tag -f $tag HEAD
+          $giteeRemote = "https://oauth2:$($env:GITEE_TOKEN)@gitee.com/$owner/$repo.git"
+          if ($env:GITHUB_REF -eq 'refs/heads/main' -or $env:GITHUB_REF -like 'refs/tags/*') {
+            git push $giteeRemote HEAD:refs/heads/main --force
+          }
+          git push $giteeRemote "refs/tags/$tag" --force
+
+          $apiBase = "https://gitee.com/api/v5/repos/$owner/$repo/releases"
+          try {
+            $old = Invoke-RestMethod -Method Get -Uri "$apiBase/tags/$tag?access_token=$($env:GITEE_TOKEN)"
+            if ($old.id) {
+              Write-Host "Deleting existing Gitee release $tag (id=$($old.id))..."
+              Invoke-RestMethod -Method Delete -Uri "$apiBase/$($old.id)?access_token=$($env:GITEE_TOKEN)" | Out-Null
+            }
+          } catch {
+            # Tag release does not exist yet.
+          }
+
+          $body = @{
+            access_token     = $env:GITEE_TOKEN
+            tag_name         = $tag
+            name             = $title
+            body             = $notes
+            prerelease       = $false
+            target_commitish = 'main'
+          }
+          $rel = Invoke-RestMethod -Method Post -Uri $apiBase -Body $body
+          if (-not $rel.id) { throw "Failed to create Gitee Release for $tag." }
+          Write-Host "Created Gitee release id=$($rel.id) for $tag."
+
+          foreach ($file in @($exeEn, $installerEn)) {
+            Write-Host "Uploading $(Split-Path $file -Leaf) to Gitee release..."
+            curl.exe -sS -f -X POST "$apiBase/$($rel.id)/attach_files" `
+              -F "access_token=$($env:GITEE_TOKEN)" `
+              -F "file=@$file" | Out-Null
+            if ($LASTEXITCODE -ne 0) { throw "Failed to upload $file to Gitee release." }
+          }
+          Write-Host "Gitee release $tag synced successfully."

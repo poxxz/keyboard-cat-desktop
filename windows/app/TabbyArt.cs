@@ -5,26 +5,26 @@ using System.Windows.Media;
 // Photo-matched longhaired tabby. All static markings are assembled and frozen once.
 internal static class TabbyArt
 {
-    private const double BodyWidth = 1.07;
-    private const double BodyHeight = 1.025;
-    private const double BodyTop = 237 - 119 * BodyHeight;
-    private static readonly Geometry Head = Shape("M -41,-24 C -44,-31 -46,-46 -44,-57 Q -43,-64 -39,-64 C -32,-64 -23,-51 -18,-43 " +
+    internal const double BodyWidth = 1.07;
+    internal const double BodyHeight = 1.025;
+    internal const double BodyTop = 237 - 119 * BodyHeight;
+    internal static readonly Geometry Head = Shape("M -41,-24 C -44,-31 -46,-46 -44,-57 Q -43,-64 -39,-64 C -32,-64 -23,-51 -18,-43 " +
                  "C -6,-46 7,-46 19,-43 C 26,-50 33,-61 40,-65 Q 45,-69 45,-61 Q 45,-45 40,-29 " +
                  "C 45,-23 48,-16 49,-10 Q 53,-3 54,1 C 52,2 51,1 50,.5 Q 54,7 56,12 Q 55,14 52,13 " +
                  "Q 50,17 51,19 Q 49,21 44,20 C 39,24 34,25 28,27 Q 23,32 11,32 Q 3,36 -5,35 " +
                  "Q -16,34 -23,30 Q -34,29 -41,25 Q -46,25 -50,24 Q -48,21 -48,20 Q -54,19 -56,18 " +
                  "Q -53,15 -52,13 Q -57,14 -58,12 C -56,8 -54,6 -53,2 Q -56,3 -57,2 Q -53,-7 -49,-13 Q -47,-19 -41,-24 Z");
-    private static readonly Geometry Body = Shape("M -29,-5 C -35,8 -41,21 -46,34 Q -49,39 -50,46 L -48,45 Q -54,59 -55,72 " +
+    internal static readonly Geometry Body = Shape("M -29,-5 C -35,8 -41,21 -46,34 Q -49,39 -50,46 L -48,45 Q -54,59 -55,72 " +
                  "C -56,91 -53,105 -48,113 Q -49,120 -42,122 Q -35,123 -30,117 C -11,121 13,122 32,117 " +
                  "Q 37,123 45,120 Q 50,118 49,112 C 55,103 56,92 55,78 Q 54,62 49,48 L 51,50 Q 48,36 44,29 " +
                  "Q 38,12 29,-5 Z");
-    private static readonly Geometry Tail = Shape("M -8,-3 C 8,9 27,2 33,-9 C 38,-18 34,-27 40,-38 L 42,-35 Q 47,-53 57,-59 L 56,-54 Q 68,-64 74,-58 Q 81,-52 76,-43 L 79,-44 C 82,-24 67,-4 43,6 C 23,15 6,14 -8,8 Z");
+    internal static readonly Geometry Tail = Shape("M -8,-3 C 8,9 27,2 33,-9 C 38,-18 34,-27 40,-38 L 42,-35 Q 47,-53 57,-59 L 56,-54 Q 68,-64 74,-58 Q 81,-52 76,-43 L 79,-44 C 82,-24 67,-4 43,6 C 23,15 6,14 -8,8 Z");
     private static readonly Geometry Eye = Shape("M -12,1.2 C -11,-4.8 -6.9,-9 0,-9 Q 8,-9.1 12,-3 C 12,3.1 8,8.5 1,9 Q -8,9.4 -12,1.2 Z");
     private static readonly Geometry ClosedEye = Shape("M -11,0 Q -1,6 12,-1");
     private static readonly Geometry Whiskers = Shape("M 20,12.2 Q 42,8.5 58,13 M 21,15 Q 43,14.8 61,23.5 M 22,18 Q 41,19 54.5,28");
     private static readonly Geometry EarTuft = Shape("M -32,-37 Q -40,-23 -53,-27 M -36,-34 Q -44,-24.2 -55,-25.8");
     private static readonly Geometry FrontSock = Shape("M -8.5,-1 C -8.9,-4.2 -6.6,-7.3 -3.6,-7.5 Q -.8,-9.9 2,-8 Q 5,-8.8 7.1,-6.6 C 9.6,-4.5 10.2,1.6 8.3,4.6 Q 6,8.3 .6,7.1 Q -4.3,8.7 -7.3,5.4 Q -9.4,3.3 -8.5,-1 Z");
-    private static readonly Geometry Ruff = Shape("M -42,8 Q -18,-3 0,2 Q 22,-3 41,7 C 43,15 40,23 38,26 " +
+    internal static readonly Geometry Ruff = Shape("M -42,8 Q -18,-3 0,2 Q 22,-3 41,7 C 43,15 40,23 38,26 " +
             "Q 39,28 41,28 Q 37,33 28,35 Q 25,41 18,44 Q 20,42 20,40 " +
             "Q 13,45 8,49 Q 5,51 1,52 Q 1,50 0,49 Q -6,54 -11,51 Q -8,51 -8,48 " +
             "Q -18,47 -24,42 Q -22,42 -20,40 Q -29,40 -35,35 Q -32,35 -31,33 " +
@@ -213,11 +213,15 @@ internal static class TabbyArt
         Wash(d,"#70685E","#585651","M 38,-51 L 50,-52 Q 45,-32 55,-23 Q 61,-18 67,-16 L 62,-6 Q 48,-11 41,-20 Q 34,-32 38,-51 Z");
         Wash(d,"#514E48","#454744","M 52,-69 L 89,-68 L 92,-24 L 76,-19 Q 64,-23 57,-34 Q 52,-42 53,-51 Q 55,-59 52,-69 Z");
     }
-    private static void DrawEye(DrawingContext dc, int side, double gazeX, double gazeY, double blink, double crouch = 0)
+    private static void DrawEye(DrawingContext dc, int side, double gazeX, double gazeY, double blink, double crouch = 0, double happyPet = 0)
     {
         dc.PushTransform(new TranslateTransform(side*18.65,-8.45));
         dc.PushTransform(new ScaleTransform(side*10.9/12,9.1/9));
-        if (blink>.92)
+        if (happyPet > 0.32 && blink < 0.85)
+        {
+            CatArt.DrawHappyEye(dc, 0, 0, 11.2, Lid);
+        }
+        else if (blink>.92)
         {
             dc.DrawGeometry(null,Lid,ClosedEye);
         }
@@ -242,15 +246,15 @@ internal static class TabbyArt
     private static readonly Brush LidFur = Ink("#A2896B");
 
     private static void DrawHead(DrawingContext dc, double gazeX, double gazeY, double blink,
-                                 double anger = 0, double angerBreath = 0.5, double crouch = 0)
+                                 double anger = 0, double angerBreath = 0.5, double crouch = 0, double happyPet = 0)
     {
         dc.DrawDrawing(HeadCoat);
         dc.DrawGeometry(null,EarFeather,EarTuft);
         gazeX = Math.Min(1,.37+.79*gazeX);
         gazeY -= .035;
-        DrawEye(dc,-1,gazeX,gazeY,blink,crouch);
-        DrawEye(dc,1,gazeX,gazeY,blink,crouch);
-        if (anger > .01 && blink <= .92)
+        DrawEye(dc,-1,gazeX,gazeY,blink,crouch,happyPet);
+        DrawEye(dc,1,gazeX,gazeY,blink,crouch,happyPet);
+        if (anger > .01 && blink <= .92 && happyPet <= 0.32)
         {
             CatArt.DrawAngryEyelid(dc, -18.65, -8.45, 11.2, 9.2, -1, LidFur, Lid, anger, angerBreath);
             CatArt.DrawAngryEyelid(dc, 18.65, -8.45, 11.2, 9.2, 1, LidFur, Lid, anger, angerBreath);
@@ -396,9 +400,31 @@ internal static class TabbyArt
 
     public static bool ContainsHead(Point pointer, double time, double gazeX, double gazeY, Point leftPaw)
     {
-        Matrix pose=HeadPose(time,gazeX,gazeY,Lean(leftPaw));
-        pose.Invert();
-        return Head.FillContains(pose.Transform(pointer));
+        return ContainsCat(pointer, time, gazeX, gazeY, leftPaw, 0) == PetZone.Head;
+    }
+
+    public static PetZone ContainsCat(Point pointer, double time, double gazeX, double gazeY, Point leftPaw, double sleep)
+    {
+        double s = Math.Max(0, Math.Min(1, sleep));
+        double lean = Lean(leftPaw) * (1 - s);
+        if (s < 0.3)
+        {
+            Matrix pose = HeadPose(time, gazeX, gazeY, lean);
+            pose.Invert();
+            if (Head.FillContains(pose.Transform(pointer))) return PetZone.Head;
+        }
+        else
+        {
+            double hx = 214 - 33.5 * lean - 2.0 * s;
+            double hy = BodyTop - 2 + (186 - (BodyTop - 2)) * s;
+            if (Math.Pow((pointer.X - hx) / 60.0, 2) + Math.Pow((pointer.Y - hy) / 50.0, 2) < 1.0)
+                return PetZone.Head;
+        }
+        double bx = 214 - 14.0 * lean;
+        double by = 176 + 24.0 * s;
+        if (Math.Pow((pointer.X - bx) / 60.0, 2) + Math.Pow((pointer.Y - by) / (66.0 - 20.0 * s), 2) < 1.0)
+            return PetZone.Body;
+        return PetZone.None;
     }
 
     private static void PushBodyPose(DrawingContext dc,double lean,double sxScale,double syScale,double bodyYShift)
@@ -414,14 +440,16 @@ internal static class TabbyArt
     {
         double sleep = Math.Max(0, Math.Min(1, mood.Sleep));
         double crouch = Math.Max(0, Math.Min(1, mood.Crouch));
+        double happy = Math.Max(0, Math.Min(1, mood.HappyPet)) * (1 - sleep);
+        double impatient = Math.Max(0, Math.Min(1, mood.Impatient)) * (1 - sleep);
         double lean=Lean(leftPaw) * (1 - sleep);
-        double syScale = 1.0 - 0.45 * sleep - 0.10 * crouch;
-        double sxScale = 1.0 + 0.04 * sleep + 0.04 * crouch;
+        double syScale = 1.0 - 0.45 * sleep - 0.10 * crouch + 0.025 * happy * Math.Sin(time * 5.0);
+        double sxScale = 1.0 + 0.04 * sleep + 0.04 * crouch + 0.02 * happy;
         double bodyYShift = (1.0 - syScale) * (235.0 - BodyTop);
         double angerBreath = 0.5 + 0.5 * Math.Sin(time * 6.8);
 
-        double tailSpeed = 1.8 + mood.Anger * 2.8 + crouch * 2.2 - sleep * 1.1;
-        double tailAmp = 2.1 + mood.Anger * 2.0 + crouch * 2.5;
+        double tailSpeed = 1.8 + mood.Anger * 2.8 + impatient * 3.4 + crouch * 2.2 - sleep * 1.1 + happy * 0.45;
+        double tailAmp = 2.1 + mood.Anger * 2.0 + impatient * 2.6 + crouch * 2.5 + happy * 0.9;
         dc.PushTransform(new TranslateTransform(187,184 + 14 * sleep));
         dc.PushTransform(new RotateTransform(186+Math.Sin(time*tailSpeed)*tailAmp));
         dc.PushTransform(new ScaleTransform(1.1,1.22));
@@ -455,16 +483,22 @@ internal static class TabbyArt
 
         double breathFreq = sleep > 0.5 ? 1.15 : 1.7;
         double breathAmp = sleep > 0.5 ? 1.6 : 0.6;
-        double hx = 214 - 33.5*lean + 2.5*gazeX*(1 - sleep) - 2.0*sleep;
-        double hyNorm = BodyTop - 2 + 2*gazeY + Math.Sin(time*breathFreq)*breathAmp + 12.0*crouch;
+        double nuzzleX = mood.PetNuzzleX * 4.5 * happy;
+        double nuzzleY = mood.PetNuzzleY * 2.5 * happy - 1.5 * happy + 2.2 * impatient;
+        double shakeX = impatient > 0.02 ? Math.Sin(time * 26.0) * 1.9 * impatient : 0;
+        double hx = 214 - 33.5*lean + 2.5*gazeX*(1 - sleep) - 2.0*sleep + nuzzleX + shakeX;
+        double hyNorm = BodyTop - 2 + 2*gazeY + Math.Sin(time*breathFreq)*breathAmp + 12.0*crouch + nuzzleY;
         double hy = hyNorm + (186 + Math.Sin(time*1.15)*1.8 - hyNorm)*sleep;
-        double rot = (-2.25 + 2.8*gazeX - 2.4*lean)*(1 - sleep) - 8.5*sleep;
+        double rot = (-2.25 + 2.8*gazeX - 2.4*lean + mood.PetNuzzleX * 6.5 * happy + Math.Sin(time * 5.2) * 2.6 * happy + Math.Sin(time * 22.0) * 2.8 * impatient)*(1 - sleep) - 8.5*sleep;
+        double browAnger = Math.Max(mood.Anger, impatient * 0.92);
         dc.PushTransform(new TranslateTransform(hx, hy));
         dc.PushTransform(new RotateTransform(rot));
         dc.PushTransform(new ScaleTransform(1.055,1));
-        DrawHead(dc,gazeX,gazeY,blink,mood.Anger,angerBreath,mood.Crouch);
+        DrawHead(dc,gazeX,gazeY,blink,browAnger,angerBreath,mood.Crouch,happy);
+        if (happy > .05) CatArt.DrawBlush(dc, happy);
         if (mood.Sweat > .01) CatArt.DrawSweat(dc, time, mood.Sweat);
         if (mood.Anger > .01) CatArt.DrawAnger(dc, time, mood.Anger);
+        if (impatient > .05) CatArt.DrawImpatientMark(dc, time, impatient);
         dc.Pop();
         dc.Pop();
         dc.Pop();

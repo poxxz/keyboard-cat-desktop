@@ -13,11 +13,18 @@ internal sealed class CatScene : FrameworkElement
         public double Time, Angle;
     }
 
+    private sealed class PetParticle
+    {
+        public bool IsHeart;
+        public double X, Y, Vx, Vy, Born, Life, Scale, Rot, Phase;
+    }
+
     private enum IdleAction { None, Sleep, HuntBug }
 
     private static readonly Point IdleLeft = new Point(192, 233);
     private static readonly Point IdleRight = new Point(229, 233);
     private readonly List<Cap> caps = new List<Cap>();
+    private readonly List<PetParticle> petParticles = new List<PetParticle>();
     private readonly Dictionary<int, double> strikes = new Dictionary<int, double>();
     private readonly Dictionary<int, double> highlights = new Dictionary<int, double>();
     private readonly List<int> expired = new List<int>();
@@ -27,13 +34,18 @@ internal sealed class CatScene : FrameworkElement
     private Point pointer, lastPointer;
     private Vector mouseOffset, localTravel, monitorPosition;
     private double grip;
-    private bool pointerKnown, leftDown, rightDown, headHovered, clockInitialized;
+    private bool pointerKnown, leftDown, rightDown, clockInitialized;
+    private PetZone petZone = PetZone.None;
     private double time, lastKey = -10, leftAt = -10, rightAt = -10;
     private double lastMove = -10, leftClickAt = -10, rightClickAt = -10, lastPet = -10, nextBlink = 2.7;
     private double lastActivity, idleActionStart, idleActionDuration;
     private double gazeX, gazeY, blink, leftActivity, rightActivity;
     private double fastDuration, fastCoolDelay, sweatBlend, angerBlend;
     private double passwordBlend, sleepBlend, crouchBlend;
+    private double petSpeed, petVelX, petHandPhase, petRubHold, fastRubDuration, impatientHold;
+    private double happyPetBlend, impatientBlend, petNuzzleX, petNuzzleY, nextPetParticleAt;
+    private bool allowPetHand = true, dragActive;
+    private double dragHoldProgress;
     private bool passwordFocused;
     private IdleAction idleAction = IdleAction.None;
     private double bugX = 148, bugY = 82, bugHeading = -1, swatFlash;
@@ -43,11 +55,67 @@ internal sealed class CatScene : FrameworkElement
     public bool PasswordModeEnabled = true;
     public int IdleMinutes = 5;
     public CatStyle Cat = CatStyle.Black;
+    public CompiledSkin CustomSkin;
     public KeyboardStyle Keyboard = KeyboardStyle.Classic;
     public MouseStyle Mouse = MouseStyle.Classic;
     public GamepadStyle Gamepad = GamepadStyle.Xbox;
     public GamepadMode GamepadMode = GamepadMode.Auto;
     public const double CanvasWidth = 480, CanvasHeight = 320;
+
+    public PetZone CurrentPetZone { get { return petZone; } }
+    public bool IsPetHandVisible
+    {
+        get
+        {
+            return allowPetHand && pointerKnown &&
+                (dragActive || dragHoldProgress > 0.03 || (petZone != PetZone.None && !InPasswordMode));
+        }
+    }
+
+    public void SetDragVisual(bool allowVisualHand, double holdProgress, bool isDragging)
+    {
+        allowPetHand = allowVisualHand;
+        dragHoldProgress = Clamp(holdProgress, 0, 1);
+        dragActive = isDragging;
+        if (!allowVisualHand)
+        {
+            petZone = PetZone.None;
+            petSpeed = 0;
+            fastRubDuration = 0;
+        }
+    }
+
+    // Triggered by a quick left-click pat on the cat (shorter than long-press drag).
+    public void QuickPat(double now)
+    {
+        if (InPasswordMode || !allowPetHand) return;
+        WakeFromIdle(now);
+        lastPet = now;
+        petRubHold = Math.Max(petRubHold, 0.85);
+        impatientHold = 0;
+        fastRubDuration = 0;
+        Point origin = pointerKnown ? pointer : new Point(214, 92);
+        SpawnPetParticle(origin, now, true);
+        SpawnPetParticle(new Point(origin.X + random.Next(-18, 19), origin.Y - 8), now, false);
+    }
+
+    private void SpawnPetParticle(Point origin, double now, bool forceHeart)
+    {
+        if (petParticles.Count >= 16) petParticles.RemoveAt(0);
+        petParticles.Add(new PetParticle
+        {
+            IsHeart = forceHeart,
+            X = Clamp(origin.X + random.Next(-22, 23), 130, 305),
+            Y = Clamp(origin.Y - 10 + random.Next(-14, 10), 28, 210),
+            Vx = (random.NextDouble() - 0.5) * 20.0,
+            Vy = -(36.0 + random.NextDouble() * 24.0),
+            Born = now,
+            Life = 0.95 + random.NextDouble() * 0.45,
+            Scale = 0.72 + random.NextDouble() * 0.36,
+            Rot = (random.NextDouble() - 0.5) * 26.0,
+            Phase = random.NextDouble() * Math.PI * 2.0
+        });
+    }
 
     // Gamepad mode: the pad state drives the drawing (GamepadArt), the paws
     // grip the controller, and the gaze follows the last pressed button.
@@ -247,6 +315,7 @@ internal sealed class CatScene : FrameworkElement
     public void Pointer(Point p, bool physicalLeft, bool physicalRight, double now, Vector positionOnMonitor)
     {
         Vector delta = p - lastPointer;
+        double sampleDt = Math.Max(0.012, Math.Min(0.1, now - time));
         if (pointerKnown && delta.LengthSquared > .000001)
         {
             localTravel.X = Clamp(localTravel.X + delta.X * .13, -5.5, 5.5);
@@ -254,13 +323,38 @@ internal sealed class CatScene : FrameworkElement
             MarkMouseActivity(now);
         }
         monitorPosition = positionOnMonitor;
-        bool onHead = CatArt.ContainsHead(Cat,p,time,gazeX,gazeY,left);
-        if (onHead && !headHovered)
+
+        PetZone zone = allowPetHand
+            ? (CustomSkin != null
+                ? CustomSkinArt.ContainsCat(CustomSkin, p, time, gazeX, gazeY, left, sleepBlend)
+                : CatArt.ContainsCat(Cat, p, time, gazeX, gazeY, left, sleepBlend))
+            : PetZone.None;
+
+        if (zone != PetZone.None && !InPasswordMode && !dragActive)
         {
-            lastPet = now;
-            WakeFromIdle(now);
+            if (petZone == PetZone.None)
+            {
+                lastPet = now;
+                WakeFromIdle(now);
+            }
+            if (pointerKnown)
+            {
+                double instSpeed = delta.Length / sampleDt;
+                petSpeed = petSpeed * 0.58 + instSpeed * 0.42;
+                petVelX = petVelX * 0.55 + (delta.X / sampleDt) * 0.45;
+                if (delta.Length > 1.1)
+                {
+                    petRubHold = 0.48;
+                    WakeFromIdle(now);
+                }
+            }
         }
-        headHovered = onHead;
+        else
+        {
+            petSpeed *= 0.65;
+            petVelX *= 0.65;
+        }
+        petZone = zone;
         pointerKnown = true;
         pointer = lastPointer = p;
         MouseButton(1, physicalLeft, now);
@@ -295,7 +389,73 @@ internal sealed class CatScene : FrameworkElement
             rightDown = down;
             if (down) rightClickAt = now;
         }
-        if (down && headHovered) lastPet = now;
+    }
+
+    private void UpdatePetMood(double now, double dt)
+    {
+        bool activeHover = allowPetHand && petZone != PetZone.None && !InPasswordMode && !dragActive;
+        if (!activeHover)
+        {
+            petSpeed *= Math.Exp(-dt * 9.0);
+            petVelX *= Math.Exp(-dt * 9.0);
+        }
+        petRubHold = Math.Max(0, petRubHold - dt);
+        impatientHold = Math.Max(0, impatientHold - dt);
+
+        if (activeHover && petSpeed > 490.0)
+        {
+            fastRubDuration = Math.Min(3.5, fastRubDuration + dt);
+            if (fastRubDuration >= 0.80) impatientHold = 1.65;
+        }
+        else
+        {
+            fastRubDuration = Math.Max(0, fastRubDuration - dt * 1.45);
+        }
+
+        bool isImpatient = impatientHold > 0.01 && !InPasswordMode;
+        bool isRubbing = activeHover && petRubHold > 0.01 && !isImpatient;
+        bool isHappy = !InPasswordMode && !isImpatient && (isRubbing || (petRubHold > 0.05 && happyPetBlend > 0.25));
+
+        double targetImpatient = isImpatient ? 1.0 : 0.0;
+        double targetHappy = isHappy ? 1.0 : 0.0;
+        double moodRate = 1 - Math.Exp(-dt * 7.5);
+        impatientBlend += (targetImpatient - impatientBlend) * moodRate;
+        happyPetBlend += (targetHappy - happyPetBlend) * moodRate;
+        if (impatientBlend < .004 && targetImpatient == 0) impatientBlend = 0;
+        if (happyPetBlend < .004 && targetHappy == 0) happyPetBlend = 0;
+
+        double targetNx = isHappy && pointerKnown ? Clamp((pointer.X - 214.0) / 55.0, -1, 1) : 0;
+        double targetNy = isHappy && pointerKnown ? Clamp((pointer.Y - 105.0) / 65.0, -1, 1) : 0;
+        double nuzzleEase = 1 - Math.Exp(-dt * 10.0);
+        petNuzzleX += (targetNx - petNuzzleX) * nuzzleEase;
+        petNuzzleY += (targetNy - petNuzzleY) * nuzzleEase;
+
+        double handRate = isImpatient ? 18.0 : (isRubbing ? 11.0 : 3.2);
+        petHandPhase += dt * handRate;
+
+        // Spawn floating hearts & stars during happy petting.
+        if (isHappy && happyPetBlend > 0.28 && now >= nextPetParticleAt)
+        {
+            Point spawnOrigin = pointerKnown && petZone != PetZone.None
+                ? pointer
+                : new Point(214 + random.Next(-26, 27), 86);
+            SpawnPetParticle(spawnOrigin, now, random.Next(2) == 0);
+            nextPetParticleAt = now + 0.24 + random.NextDouble() * 0.18;
+        }
+
+        // Advance floating particles.
+        for (int i = petParticles.Count - 1; i >= 0; --i)
+        {
+            PetParticle pt = petParticles[i];
+            if (now - pt.Born >= pt.Life)
+            {
+                petParticles.RemoveAt(i);
+                continue;
+            }
+            pt.X += (pt.Vx + Math.Sin((now - pt.Born) * 5.5 + pt.Phase) * 14.0) * dt;
+            pt.Y += pt.Vy * dt;
+            pt.Vy *= Math.Exp(-dt * 0.85);
+        }
     }
 
     private void MarkMouseActivity(double now)
@@ -507,9 +667,10 @@ internal sealed class CatScene : FrameworkElement
 
         UpdateIdleState(now, dt);
         UpdateFastMood(now, dt);
+        UpdatePetMood(now, dt);
 
         if (now > nextBlink + 0.30) nextBlink = now + 2.6 + random.NextDouble() * 3.7;
-        blink = Math.Max(Pulse(now - nextBlink, .23), Pulse(now - lastPet, .59));
+        blink = Math.Max(Pulse(now - nextBlink, .23), Pulse(now - lastPet, .36));
         blink = Math.Max(blink, passwordBlend);
         if (sleepBlend > .15) blink = Math.Max(blink, Smooth((sleepBlend - .15) / .45));
 
@@ -581,8 +742,9 @@ internal sealed class CatScene : FrameworkElement
             return;
         }
 
+        bool beingPetted = allowPetHand && (petZone != PetZone.None || dragActive || dragHoldProgress > 0.03);
         double typing = 1 - Smooth((now - lastKey - .95) / .48);
-        double hold = leftDown || rightDown ? 1 : 1 - Smooth((now - lastMove - .55) / .28);
+        double hold = beingPetted ? 0 : (leftDown || rightDown ? 1 : 1 - Smooth((now - lastMove - .55) / .28));
         grip += Clamp(hold - grip, -dt * 10, dt * 12);
         if (hold == 0) localTravel *= Math.Exp(-dt * 8);
         // Slow sweeps follow the position on the monitor; small reversals also
@@ -715,6 +877,14 @@ internal sealed class CatScene : FrameworkElement
     }
     private static Point Mix(Point a, Point b, double k) { return a + (b - a) * k; }
 
+    private void DrawActiveCat(DrawingContext dc, double pawRaised, Action<DrawingContext> between, CatMood mood)
+    {
+        if (CustomSkin != null)
+            CustomSkinArt.Draw(dc, CustomSkin, time, gazeX, gazeY, blink, left, right, leftActivity, rightActivity, pawRaised, between, mood);
+        else
+            CatArt.DrawStyled(dc, Cat, time, gazeX, gazeY, blink, left, right, leftActivity, rightActivity, pawRaised, between, mood);
+    }
+
     protected override void OnRender(DrawingContext dc)
     {
         dc.PushTransform(new ScaleTransform(ActualWidth / CanvasWidth, ActualHeight / CanvasHeight));
@@ -723,12 +893,16 @@ internal sealed class CatScene : FrameworkElement
             Sweat = sweatBlend,
             Anger = angerBlend,
             Sleep = sleepBlend,
-            Crouch = crouchBlend
+            Crouch = crouchBlend,
+            HappyPet = happyPetBlend,
+            Impatient = impatientBlend,
+            PetNuzzleX = petNuzzleX,
+            PetNuzzleY = petNuzzleY
         };
         if (showingGamepad)
         {
             double padDrop = 26.0 * sleepBlend;
-            CatArt.DrawStyled(dc, Cat, time, gazeX, gazeY, blink, left, right, leftActivity, rightActivity, 0.25,
+            DrawActiveCat(dc, 0.25,
                 delegate(DrawingContext g)
                 {
                     if (padDrop > .01) g.PushTransform(new TranslateTransform(0, padDrop));
@@ -742,7 +916,7 @@ internal sealed class CatScene : FrameworkElement
             double rGlow = InPasswordMode ? 0 : ClickGlow(rightDown, rightClickAt);
             DeskArt.DrawDesk(dc, InPasswordMode ? null : highlights, lGlow, rGlow,
                 Keyboard, Mouse, mouseOffset);
-            CatArt.DrawStyled(dc, Cat, time, gazeX, gazeY, blink, left, right, leftActivity, rightActivity, -1, null, mood);
+            DrawActiveCat(dc, -1, null, mood);
             if (passwordBlend > .005) DeskArt.DrawPasswordCover(dc, passwordBlend);
         }
         if (sleepBlend > .35)
@@ -754,6 +928,15 @@ internal sealed class CatScene : FrameworkElement
             if (huntSwatSide < 0) CatArt.DrawSwatTrail(dc, left.X, left.Y, -1, swatFlash);
             else if (huntSwatSide > 0) CatArt.DrawSwatTrail(dc, right.X, right.Y, 1, swatFlash);
             CatArt.DrawBug(dc, bugX, bugY, time, bugHeading, swatFlash);
+        }
+        for (int i = 0; i < petParticles.Count; ++i)
+        {
+            PetParticle pt = petParticles[i];
+            double p = Clamp((time - pt.Born) / pt.Life, 0, 1);
+            double fadeIn = Smooth(p / 0.16);
+            double fadeOut = 1.0 - Smooth((p - 0.65) / 0.35);
+            double sc = pt.Scale * (0.65 + 0.45 * fadeIn);
+            CatArt.DrawPetParticle(dc, pt.IsHeart, pt.X, pt.Y, sc, pt.Rot + Math.Sin(p * Math.PI * 2.0) * 8.0, fadeIn * fadeOut);
         }
         for (int i = 0; i < caps.Count; i++)
         {
@@ -767,6 +950,11 @@ internal sealed class CatScene : FrameworkElement
             center = Mix(center, new Point(298, 214), settle);
             double opacity = newest ? 1 - Smooth((age - 5.4) / .4) : 1 - Smooth((progress - .55) / .45);
             DeskArt.DrawCap(dc, cap.Label, center, opacity, cap.Angle * travel * (1 - settle));
+        }
+        if (IsPetHandVisible)
+        {
+            bool rubbing = petRubHold > 0.01 && petZone != PetZone.None && !dragActive;
+            CatArt.DrawPettingHand(dc, pointer, petVelX, petHandPhase, dragHoldProgress, dragActive, rubbing);
         }
         dc.Pop();
     }

@@ -11,12 +11,14 @@ using System.Windows.Shapes;
 using System.Windows.Threading;
 
 // Cream-style modular WPF settings window matching the classic cream keyboard & gamepad palette.
-internal sealed class SettingsWindow : Window
+internal sealed partial class SettingsWindow : Window
 {
     internal sealed class Callbacks
     {
         public Func<CatStyle> GetCat;
         public Action<CatStyle> SetCat;
+        public Func<string> GetCustomSkinId;
+        public Action<CatSkinData> ApplyCustomSkin;
         public Func<double> GetScale;
         public Action<double> SetScale;
         public Action CommitScale;
@@ -34,6 +36,8 @@ internal sealed class SettingsWindow : Window
         public Action<int> SetIdleMinutes;
         public Func<bool> GetLabels;
         public Action<bool> SetLabels;
+        public Func<bool> GetAutoCheckUpdate;
+        public Action<bool> SetAutoCheckUpdate;
         public Func<bool> GetOnTop;
         public Action<bool> SetOnTop;
         public Func<bool> GetClickThrough;
@@ -128,6 +132,7 @@ internal sealed class SettingsWindow : Window
     private static readonly Brush TextSecondary = BrushOf(0x857564);
     private static readonly Brush TextAmber = BrushOf(0x6C440C);
     private static readonly Brush HoneyDot = BrushOf(0xF0A019);
+    private static readonly Brush UpdateDotBrush = BrushOf(0xE65A3E);
     private static readonly Brush DividerBrush = BrushOf(0xEFE8D8);
 
     private readonly Callbacks cb;
@@ -136,21 +141,26 @@ internal sealed class SettingsWindow : Window
     private readonly List<Shape> navIconShapes = new List<Shape>();
     private readonly List<UIElement> tabPanels = new List<UIElement>();
     private readonly List<SelectableCard> catCards = new List<SelectableCard>();
+    private readonly List<SelectableCard> appearanceCustomCards = new List<SelectableCard>();
     private readonly List<SelectableCard> kbCards = new List<SelectableCard>();
     private readonly List<SelectableCard> mouseCards = new List<SelectableCard>();
     private readonly List<SelectableCard> gpCards = new List<SelectableCard>();
     private readonly List<SegmentButton> gpModeSegs = new List<SegmentButton>();
     private readonly List<SegmentButton> idleSegs = new List<SegmentButton>();
     private readonly List<SegmentButton> scalePresets = new List<SegmentButton>();
+    private StackPanel appearanceCustomStrip;
     private Slider scaleSlider;
     private TextBlock scaleValueText;
-    private CreamToggle passwordToggle, labelsToggle, startupToggle, onTopToggle, clickThroughToggle;
+    private CreamToggle passwordToggle, labelsToggle, startupToggle, autoCheckToggle, onTopToggle, clickThroughToggle;
     private TextBlock hideBtnText;
+    private Ellipse updateNavDot;
     private TextBlock updateStatusText;
     private Border updateBtn;
     private TextBlock updateBtnText;
+    private Border openReleaseBtn;
     private bool updateBusy;
     private UpdateManager.CheckResult availableUpdate;
+    private string lastReleaseUrl;
     private bool syncing;
     private int activeTab;
     public bool AllowClose;
@@ -168,7 +178,7 @@ internal sealed class SettingsWindow : Window
         ResizeMode = ResizeMode.NoResize;
         ShowInTaskbar = false;
         Topmost = true;
-        Width = 604;
+        Width = 668;
         SizeToContent = SizeToContent.Height;
         FontFamily = UiFont;
         UseLayoutRounding = true;
@@ -195,7 +205,28 @@ internal sealed class SettingsWindow : Window
         };
 
         Content = BuildRoot();
+        RefreshSavedSkinLists();
         SelectTab(0);
+    }
+
+    public void OpenTab(int index)
+    {
+        if (index < 0 || index >= tabPanels.Count) return;
+        SelectTab(index);
+    }
+
+    public void NotifyUpdateAvailable(UpdateManager.CheckResult res)
+    {
+        if (res == null || !string.IsNullOrEmpty(res.Error) || !res.HasUpdate) return;
+        availableUpdate = res;
+        lastReleaseUrl = res.ReleaseUrl;
+        if (updateNavDot != null) updateNavDot.Visibility = Visibility.Visible;
+        if (updateStatusText != null)
+        {
+            updateStatusText.Text = "已从 " + res.SourceName + " 发现新正式版 v" + res.LatestVersion + "，点击右侧自动升级";
+        }
+        if (openReleaseBtn != null) openReleaseBtn.Visibility = Visibility.Collapsed;
+        RefreshUpdateButtonVisual();
     }
 
     private void ScheduleScale(double scale)
@@ -273,7 +304,7 @@ internal sealed class SettingsWindow : Window
         DockPanel shell = new DockPanel { LastChildFill = true };
         shell.Children.Add(BuildTitleBar());
 
-        Grid body = new Grid { MinHeight = 432 };
+        Grid body = new Grid { MinHeight = 496 };
         body.ColumnDefinitions.Add(new ColumnDefinition { Width = new GridLength(132) });
         body.ColumnDefinitions.Add(new ColumnDefinition { Width = new GridLength(1, GridUnitType.Star) });
 
@@ -283,6 +314,7 @@ internal sealed class SettingsWindow : Window
 
         Grid contentHost = new Grid { Margin = new Thickness(14, 12, 14, 12) };
         tabPanels.Add(BuildAppearanceTab());
+        tabPanels.Add(BuildWorkshopTab());
         tabPanels.Add(BuildInteractionTab());
         tabPanels.Add(BuildSystemTab());
         for (int i = 0; i < tabPanels.Count; ++i) contentHost.Children.Add(tabPanels[i]);
@@ -409,11 +441,16 @@ internal sealed class SettingsWindow : Window
         DockPanel layout = new DockPanel { LastChildFill = false };
 
         StackPanel navStack = new StackPanel();
-        string[] labels = { "外观装扮", "互动模式", "系统窗口" };
+        string[] labels = { "外观装扮", "皮肤工坊", "互动模式", "系统窗口" };
         string[] iconPaths =
         {
+            // Cat head silhouette
             "M 3,6.5 L 3,3 L 6,5.2 Q 8,4.6 10,5.2 L 13,3 L 13,6.5 C 13.8,7.5 14,8.9 13.6,10.2 C 12.9,12.4 10.9,13.5 8,13.5 C 5.1,13.5 3.1,12.4 2.4,10.2 C 2,8.9 2.2,7.5 3,6.5 Z",
+            // Artist brush / craft spark icon
+            "M 12.6,3.2 L 6.6,9.2 C 5.8,9.1 4.9,9.5 4.5,10.4 C 4.2,11.1 3.7,11.8 2.8,12.1 C 4.3,13.2 6.6,12.8 7.4,11.4 C 7.7,10.9 7.8,10.3 7.7,9.8 L 13.4,4.0 C 13.7,3.7 13.7,3.2 13.4,2.9 C 13.1,2.6 12.9,2.9 12.6,3.2 Z M 3.5,4.2 L 4.7,4.2 M 4.1,3.6 L 4.1,4.8",
+            // Gamepad outline
             "M 5.5,4.5 L 10.5,4.5 A 3.5,3.5 0 0 1 10.5,11.5 L 5.5,11.5 A 3.5,3.5 0 0 1 5.5,4.5 Z M 5.5,6.8 L 5.5,9.2 M 4.3,8 L 6.7,8",
+            // System sliders
             "M 3,4.5 L 13,4.5 M 3,8 L 13,8 M 3,11.5 L 13,11.5"
         };
         for (int i = 0; i < labels.Length; ++i)
@@ -441,9 +478,26 @@ internal sealed class SettingsWindow : Window
                 Margin = new Thickness(8, 0, 0, 0),
                 VerticalAlignment = VerticalAlignment.Center
             };
+            DockPanel row = new DockPanel { LastChildFill = false };
             StackPanel sp = new StackPanel { Orientation = Orientation.Horizontal };
             sp.Children.Add(icon);
             sp.Children.Add(tb);
+            DockPanel.SetDock(sp, Dock.Left);
+            row.Children.Add(sp);
+
+            if (i == 3)
+            {
+                updateNavDot = new Ellipse
+                {
+                    Width = 7,
+                    Height = 7,
+                    Fill = UpdateDotBrush,
+                    VerticalAlignment = VerticalAlignment.Center,
+                    Visibility = Visibility.Collapsed
+                };
+                DockPanel.SetDock(updateNavDot, Dock.Right);
+                row.Children.Add(updateNavDot);
+            }
 
             Border btn = new Border
             {
@@ -454,7 +508,7 @@ internal sealed class SettingsWindow : Window
                 BorderBrush = Brushes.Transparent,
                 Background = Brushes.Transparent,
                 Cursor = Cursors.Hand,
-                Child = sp
+                Child = row
             };
             btn.MouseLeftButtonUp += delegate { SelectTab(tabIdx); };
             navButtons.Add(btn);
@@ -622,7 +676,7 @@ internal sealed class SettingsWindow : Window
     {
         StackPanel stack = new StackPanel();
 
-        // 1. Cats 4x2 grid
+        // 1. Built-in cats 4x2 grid + compact custom skins quick strip
         StackPanel catSec = new StackPanel();
         catSec.Children.Add(MakeSectionHeader("猫咪样式", "点击即可切换"));
         UniformGrid catGrid = new UniformGrid { Columns = 4 };
@@ -640,15 +694,65 @@ internal sealed class SettingsWindow : Window
         for (int i = 0; i < catDefs.Length; ++i)
         {
             CatStyle st = catDefs[i].Style;
-            SelectableCard card = MakeVisualCard(st, catDefs[i].Name, 40, 36, delegate
+            SelectableCard card = MakeVisualCard(st, catDefs[i].Name, 40, 34, delegate
             {
                 if (cb.SetCat != null) cb.SetCat(st);
                 UpdateCardGroup(catCards, st);
+                UpdateCardGroup(appearanceCustomCards, null);
+                RefreshWorkshopActiveMarkers();
             }, true);
             catCards.Add(card);
             catGrid.Children.Add(card.Root);
         }
         catSec.Children.Add(catGrid);
+
+        // Compact custom skins quick row (fixed height so adding skins never changes window height)
+        catSec.Children.Add(new Border { Height = 1, Background = DividerBrush, Margin = new Thickness(0, 7, 0, 7) });
+        DockPanel customHead = new DockPanel { Margin = new Thickness(0, 0, 0, 5) };
+        TextBlock customTitle = new TextBlock
+        {
+            Text = "我的自定义皮肤",
+            FontSize = 11.5,
+            FontWeight = FontWeights.Bold,
+            Foreground = TextPrimary,
+            VerticalAlignment = VerticalAlignment.Center
+        };
+        DockPanel.SetDock(customTitle, Dock.Left);
+        customHead.Children.Add(customTitle);
+
+        Border openWorkshopLink = new Border
+        {
+            Background = BrushOf(0xFFF3CE),
+            BorderBrush = BrushOf(0xE8C068),
+            BorderThickness = new Thickness(1),
+            CornerRadius = new CornerRadius(8),
+            Padding = new Thickness(8, 2, 8, 2),
+            Cursor = Cursors.Hand,
+            VerticalAlignment = VerticalAlignment.Center,
+            Child = new TextBlock
+            {
+                Text = "打开皮肤工坊",
+                FontSize = 10.5,
+                FontWeight = FontWeights.SemiBold,
+                Foreground = BrushOf(0x7B4E0E)
+            }
+        };
+        openWorkshopLink.MouseEnter += delegate { openWorkshopLink.Background = BrushOf(0xFFE9AE); };
+        openWorkshopLink.MouseLeave += delegate { openWorkshopLink.Background = BrushOf(0xFFF3CE); };
+        openWorkshopLink.MouseLeftButtonUp += delegate { SelectTab(1); };
+        DockPanel.SetDock(openWorkshopLink, Dock.Right);
+        customHead.Children.Add(openWorkshopLink);
+        catSec.Children.Add(customHead);
+
+        appearanceCustomStrip = new StackPanel { Orientation = Orientation.Horizontal, VerticalAlignment = VerticalAlignment.Center };
+        ScrollViewer customScroll = new ScrollViewer
+        {
+            Height = 40,
+            HorizontalScrollBarVisibility = ScrollBarVisibility.Auto,
+            VerticalScrollBarVisibility = ScrollBarVisibility.Disabled,
+            Content = appearanceCustomStrip
+        };
+        catSec.Children.Add(customScroll);
         stack.Children.Add(MakeSectionCard(catSec));
 
         // 2. Scale slider + quick presets
@@ -692,7 +796,7 @@ internal sealed class SettingsWindow : Window
             LargeChange = 10,
             IsSnapToTickEnabled = true,
             IsMoveToPointEnabled = true,
-            Margin = new Thickness(2, 2, 2, 8),
+            Margin = new Thickness(2, 2, 2, 6),
             Cursor = Cursors.Hand
         };
         scaleSlider.ValueChanged += delegate
@@ -868,20 +972,24 @@ internal sealed class SettingsWindow : Window
             FontWeight = FontWeights.Bold,
             Foreground = TextPrimary
         });
-        textCol.Children.Add(new TextBlock
+        if (!string.IsNullOrEmpty(desc))
         {
-            Text = desc,
-            FontSize = 11,
-            Foreground = TextSecondary,
-            TextWrapping = TextWrapping.Wrap,
-            Margin = new Thickness(0, 2, 0, 0)
-        });
+            textCol.Children.Add(new TextBlock
+            {
+                Text = desc,
+                FontSize = 11,
+                Foreground = TextSecondary,
+                TextWrapping = TextWrapping.Wrap,
+                Margin = new Thickness(0, 2, 0, 0)
+            });
+        }
         row.Children.Add(textCol);
         return row;
     }
 
     private UIElement BuildInteractionTab()
     {
+        DockPanel page = new DockPanel { LastChildFill = false };
         StackPanel stack = new StackPanel();
 
         // Gamepad mode + style
@@ -949,7 +1057,33 @@ internal sealed class SettingsWindow : Window
         capCard.Margin = new Thickness(0);
         stack.Children.Add(capCard);
 
-        return stack;
+        DockPanel.SetDock(stack, Dock.Top);
+        page.Children.Add(stack);
+
+        // Petting & long-press drag gesture tip card anchored cleanly at bottom
+        StackPanel petTip = new StackPanel();
+        petTip.Children.Add(new TextBlock
+        {
+            Text = "桌面抚摸与拖动提示",
+            FontSize = 12,
+            FontWeight = FontWeights.Bold,
+            Foreground = BrushOf(0x5A4324)
+        });
+        petTip.Children.Add(new TextBlock
+        {
+            Text = "鼠标移到小猫头或身体上将切换为抚摸手势：轻揉或轻点会开心眯眼冒爱心与星星，揉得太快会不耐烦；按住不动 0.35 秒后可拖动位置。",
+            FontSize = 11,
+            Foreground = BrushOf(0x7C6B59),
+            TextWrapping = TextWrapping.Wrap,
+            Margin = new Thickness(0, 3, 0, 0)
+        });
+        Border petCard = MakeSectionCard(petTip, new Thickness(12, 9, 12, 9));
+        petCard.Background = BrushOf(0xF6F0E3);
+        petCard.Margin = new Thickness(0, 10, 0, 0);
+        DockPanel.SetDock(petCard, Dock.Bottom);
+        page.Children.Add(petCard);
+
+        return page;
     }
 
     private UIElement BuildSystemTab()
@@ -966,11 +1100,15 @@ internal sealed class SettingsWindow : Window
             }
         });
         sysToggles.Children.Add(MakeToggleRow("开机自动启动", "登录 Windows 时自动运行键盘小黑猫", startupToggle));
-        sysToggles.Children.Add(new Border { Height = 1, Background = DividerBrush, Margin = new Thickness(0, 10, 0, 10) });
+        sysToggles.Children.Add(new Border { Height = 1, Background = DividerBrush, Margin = new Thickness(0, 9, 0, 9) });
+
+        autoCheckToggle = new CreamToggle(delegate(bool on) { if (cb.SetAutoCheckUpdate != null) cb.SetAutoCheckUpdate(on); });
+        sysToggles.Children.Add(MakeToggleRow("启动时自动检测更新", "启动后在后台静默检查新版本（优先 Gitee 镜像，自动回退 GitHub）", autoCheckToggle));
+        sysToggles.Children.Add(new Border { Height = 1, Background = DividerBrush, Margin = new Thickness(0, 9, 0, 9) });
 
         onTopToggle = new CreamToggle(delegate(bool on) { if (cb.SetOnTop != null) cb.SetOnTop(on); });
         sysToggles.Children.Add(MakeToggleRow("保持窗口置顶", "小猫始终停留在其他应用窗口最前方", onTopToggle));
-        sysToggles.Children.Add(new Border { Height = 1, Background = DividerBrush, Margin = new Thickness(0, 10, 0, 10) });
+        sysToggles.Children.Add(new Border { Height = 1, Background = DividerBrush, Margin = new Thickness(0, 9, 0, 9) });
 
         clickThroughToggle = new CreamToggle(delegate(bool on) { if (cb.SetClickThrough != null) cb.SetClickThrough(on); });
         sysToggles.Children.Add(MakeToggleRow("鼠标穿透", "点击直接穿透小猫，开启后仍可通过右下角托盘图标打开设置", clickThroughToggle));
@@ -978,7 +1116,7 @@ internal sealed class SettingsWindow : Window
 
         // Quick window actions
         StackPanel actSec = new StackPanel();
-        actSec.Children.Add(MakeSectionHeader("窗口操作", null));
+        actSec.Children.Add(MakeSectionHeader("窗口操作", "长按小猫 0.35 秒也可直接拖动位置"));
         Grid btnGrid = new Grid { Margin = new Thickness(-3, 0, -3, 0) };
         btnGrid.ColumnDefinitions.Add(new ColumnDefinition { Width = new GridLength(1, GridUnitType.Star) });
         btnGrid.ColumnDefinitions.Add(new ColumnDefinition { Width = new GridLength(1, GridUnitType.Star) });
@@ -1005,8 +1143,34 @@ internal sealed class SettingsWindow : Window
         DockPanel.SetDock(stack, Dock.Top);
         page.Children.Add(stack);
 
-        // Version & GitHub official release updater card anchored at bottom
+        // Version & Gitee-first official release updater card anchored at bottom
         DockPanel updateRow = new DockPanel { LastChildFill = true };
+
+        StackPanel updateActions = new StackPanel { Orientation = Orientation.Horizontal, VerticalAlignment = VerticalAlignment.Center };
+        openReleaseBtn = new Border
+        {
+            CornerRadius = new CornerRadius(9),
+            Padding = new Thickness(10, 7, 10, 7),
+            Margin = new Thickness(8, 1, 0, 1),
+            Background = BrushOf(0xFFFDF6),
+            BorderBrush = BrushOf(0xDDD3BF),
+            BorderThickness = new Thickness(1),
+            Cursor = Cursors.Hand,
+            VerticalAlignment = VerticalAlignment.Center,
+            Visibility = Visibility.Collapsed,
+            Child = new TextBlock
+            {
+                Text = "打开下载页",
+                FontSize = 11.5,
+                FontWeight = FontWeights.SemiBold,
+                Foreground = BrushOf(0x5C4D3E)
+            }
+        };
+        openReleaseBtn.MouseEnter += delegate { openReleaseBtn.Background = BrushOf(0xFFF3D8); };
+        openReleaseBtn.MouseLeave += delegate { openReleaseBtn.Background = BrushOf(0xFFFDF6); };
+        openReleaseBtn.MouseLeftButtonUp += delegate { UpdateManager.OpenReleasePage(lastReleaseUrl); };
+        updateActions.Children.Add(openReleaseBtn);
+
         updateBtnText = new TextBlock
         {
             Text = "检测更新",
@@ -1020,7 +1184,7 @@ internal sealed class SettingsWindow : Window
         {
             CornerRadius = new CornerRadius(9),
             Padding = new Thickness(14, 7, 14, 7),
-            Margin = new Thickness(10, 1, 0, 1),
+            Margin = new Thickness(8, 1, 0, 1),
             Background = BrushOf(0xFFF3CE),
             BorderBrush = BrushOf(0xE6B95A),
             BorderThickness = new Thickness(1),
@@ -1037,24 +1201,45 @@ internal sealed class SettingsWindow : Window
         };
         updateBtn.MouseLeave += delegate { RefreshUpdateButtonVisual(); };
         updateBtn.MouseLeftButtonUp += delegate { HandleUpdateButtonClick(); };
-        DockPanel.SetDock(updateBtn, Dock.Right);
-        updateRow.Children.Add(updateBtn);
+        updateActions.Children.Add(updateBtn);
+
+        DockPanel.SetDock(updateActions, Dock.Right);
+        updateRow.Children.Add(updateActions);
 
         StackPanel about = new StackPanel { VerticalAlignment = VerticalAlignment.Center };
-        about.Children.Add(new TextBlock
+        StackPanel verLine = new StackPanel { Orientation = Orientation.Horizontal };
+        verLine.Children.Add(new TextBlock
         {
             Text = "键盘小黑猫 v" + UpdateManager.CurrentVersionText,
             FontSize = 12.5,
             FontWeight = FontWeights.Bold,
-            Foreground = BrushOf(0x4B3B2B)
+            Foreground = BrushOf(0x4B3B2B),
+            VerticalAlignment = VerticalAlignment.Center
         });
+        verLine.Children.Add(new Border
+        {
+            Background = BrushOf(0xEDE4D1),
+            CornerRadius = new CornerRadius(6),
+            Padding = new Thickness(6, 1, 6, 1),
+            Margin = new Thickness(7, 0, 0, 0),
+            VerticalAlignment = VerticalAlignment.Center,
+            Child = new TextBlock
+            {
+                Text = "Gitee 优先 · GitHub 备用",
+                FontSize = 10,
+                FontWeight = FontWeights.SemiBold,
+                Foreground = BrushOf(0x7A664F)
+            }
+        });
+        about.Children.Add(verLine);
+
         updateStatusText = new TextBlock
         {
-            Text = "从 GitHub 获取最新正式版，安装后自动清理临时文件",
+            Text = "优先从 Gitee 镜像获取最新正式版，安装后自动清理临时文件",
             FontSize = 11,
             Foreground = BrushOf(0x857564),
             TextWrapping = TextWrapping.Wrap,
-            Margin = new Thickness(0, 2, 0, 0)
+            Margin = new Thickness(0, 3, 0, 0)
         };
         about.Children.Add(updateStatusText);
         updateRow.Children.Add(about);
@@ -1107,7 +1292,8 @@ internal sealed class SettingsWindow : Window
 
         updateBusy = true;
         updateBtnText.Text = "检测中…";
-        updateStatusText.Text = "正在连接 GitHub 查询最新正式版…";
+        updateStatusText.Text = "正在连接 Gitee / GitHub 查询最新正式版…";
+        if (openReleaseBtn != null) openReleaseBtn.Visibility = Visibility.Collapsed;
         RefreshUpdateButtonVisual();
 
         ThreadPool.QueueUserWorkItem(delegate
@@ -1116,20 +1302,27 @@ internal sealed class SettingsWindow : Window
             Dispatcher.BeginInvoke(new Action(delegate
             {
                 updateBusy = false;
+                lastReleaseUrl = res.ReleaseUrl;
                 if (!string.IsNullOrEmpty(res.Error))
                 {
                     availableUpdate = null;
+                    if (updateNavDot != null) updateNavDot.Visibility = Visibility.Collapsed;
                     updateStatusText.Text = res.Error;
+                    if (openReleaseBtn != null) openReleaseBtn.Visibility = Visibility.Visible;
                 }
                 else if (res.HasUpdate)
                 {
                     availableUpdate = res;
-                    updateStatusText.Text = "发现新正式版 v" + res.LatestVersion + "，点击右侧自动下载安装并清理临时文件";
+                    if (updateNavDot != null) updateNavDot.Visibility = Visibility.Visible;
+                    updateStatusText.Text = "已从 " + res.SourceName + " 发现新正式版 v" + res.LatestVersion + "，点击右侧自动升级";
+                    if (openReleaseBtn != null) openReleaseBtn.Visibility = Visibility.Collapsed;
                 }
                 else
                 {
                     availableUpdate = null;
-                    updateStatusText.Text = "当前已是最新正式版（GitHub 最新：v" + res.LatestVersion + "）";
+                    if (updateNavDot != null) updateNavDot.Visibility = Visibility.Collapsed;
+                    updateStatusText.Text = "当前已是最新正式版（" + res.SourceName + " 最新：v" + res.LatestVersion + "）";
+                    if (openReleaseBtn != null) openReleaseBtn.Visibility = Visibility.Collapsed;
                 }
                 RefreshUpdateButtonVisual();
             }));
@@ -1140,7 +1333,8 @@ internal sealed class SettingsWindow : Window
     {
         updateBusy = true;
         updateBtnText.Text = "下载中…";
-        updateStatusText.Text = "正在下载 v" + info.LatestVersion + "（0%）…";
+        updateStatusText.Text = "正在从 " + info.SourceName + " 下载 v" + info.LatestVersion + "（0%）…";
+        if (openReleaseBtn != null) openReleaseBtn.Visibility = Visibility.Collapsed;
         RefreshUpdateButtonVisual();
 
         ThreadPool.QueueUserWorkItem(delegate
@@ -1159,7 +1353,9 @@ internal sealed class SettingsWindow : Window
                 if (!string.IsNullOrEmpty(err) || launchUpdater == null)
                 {
                     updateBusy = false;
+                    lastReleaseUrl = info.ReleaseUrl;
                     updateStatusText.Text = string.IsNullOrEmpty(err) ? "更新准备失败，请重试" : err;
+                    if (openReleaseBtn != null) openReleaseBtn.Visibility = Visibility.Visible;
                     RefreshUpdateButtonVisual();
                     return;
                 }
@@ -1223,11 +1419,34 @@ internal sealed class SettingsWindow : Window
         };
     }
 
+    private static Image RenderCustomThumb(CatSkinData skin, double width, double height)
+    {
+        CompiledSkin compiled = new CompiledSkin(skin);
+        DrawingGroup art = new DrawingGroup();
+        using (DrawingContext dc = art.Open())
+        {
+            // Keep consistent portrait bounds across short/fluffy bases and accessories.
+            dc.DrawRectangle(Brushes.Transparent, null, new Rect(-56, -70, 112, 116));
+            CustomSkinArt.DrawPortrait(dc, compiled);
+        }
+        art.Freeze();
+        DrawingImage img = new DrawingImage(art);
+        img.Freeze();
+        return new Image
+        {
+            Source = img,
+            Width = width,
+            Height = height,
+            Stretch = Stretch.Uniform,
+            SnapsToDevicePixels = false
+        };
+    }
+
     private static void UpdateCardGroup(List<SelectableCard> group, object selected)
     {
         for (int i = 0; i < group.Count; ++i)
         {
-            bool on = Equals(group[i].Value, selected);
+            bool on = selected != null && Equals(group[i].Value, selected);
             group[i].Root.Background = on ? ActiveItemBg : ItemBg;
             group[i].Root.BorderBrush = on ? ActiveBorder : ItemBorder;
             if (group[i].Dot != null) group[i].Dot.Visibility = on ? Visibility.Visible : Visibility.Collapsed;
@@ -1261,7 +1480,18 @@ internal sealed class SettingsWindow : Window
         syncing = true;
         try
         {
-            if (cb.GetCat != null) UpdateCardGroup(catCards, cb.GetCat());
+            string activeCustomId = cb.GetCustomSkinId != null ? (cb.GetCustomSkinId() ?? "") : "";
+            if (!string.IsNullOrEmpty(activeCustomId))
+            {
+                UpdateCardGroup(catCards, null);
+                UpdateCardGroup(appearanceCustomCards, activeCustomId);
+            }
+            else
+            {
+                if (cb.GetCat != null) UpdateCardGroup(catCards, cb.GetCat());
+                UpdateCardGroup(appearanceCustomCards, null);
+            }
+            RefreshWorkshopActiveMarkers();
             if (cb.GetKeyboard != null) UpdateCardGroup(kbCards, cb.GetKeyboard());
             if (cb.GetMouse != null) UpdateCardGroup(mouseCards, cb.GetMouse());
             if (cb.GetGamepad != null) UpdateCardGroup(gpCards, cb.GetGamepad());
@@ -1276,6 +1506,7 @@ internal sealed class SettingsWindow : Window
             }
             if (cb.GetPasswordMode != null) passwordToggle.SetValue(cb.GetPasswordMode());
             if (cb.GetLabels != null) labelsToggle.SetValue(cb.GetLabels());
+            if (cb.GetAutoCheckUpdate != null) autoCheckToggle.SetValue(cb.GetAutoCheckUpdate());
             if (cb.GetOnTop != null) onTopToggle.SetValue(cb.GetOnTop());
             if (cb.GetClickThrough != null) clickThroughToggle.SetValue(cb.GetClickThrough());
             startupToggle.SetValue(StartupManager.IsEnabled());

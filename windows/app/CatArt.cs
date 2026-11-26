@@ -53,28 +53,28 @@ public static partial class CatArt
     private static readonly Pen WednesdayLid = Stroke(Ink(219,168,44), 2.2);
     private static readonly Pen PawLight = Stroke(Ink(92,89,91), 0.95);
 
-    private static readonly Geometry Body = Shape(
+    internal static readonly Geometry Body = Shape(
         "M 175,102 C 175,121 173,140 168,156 C 163,173 157,195 160,210 " +
         "C 161,219 163,225 167,228 C 165,234 169,239 175,239 " +
         "C 181,239 185,235 186,231 C 199,234 223,235 240,230 " +
         "C 241,235 245,238 251,238 C 258,238 262,232 260,227 " +
         "C 267,218 269,201 267,185 C 264,159 253,130 251,103 Z");
 
-    private static readonly Geometry Head = Shape(
+    internal static readonly Geometry Head = Shape(
         "M -45,-21 C -45,-32 -43,-52 -39,-59 C -37,-63 -34,-63 -31,-61 " +
         "C -26,-58 -19,-48 -15,-44 C -5,-47 6,-47 16,-44 " +
         "C 22,-51 30,-62 34,-63 C 39,-64 41,-57 43,-47 C 45,-39 45,-27 45,-20 " +
         "C 50,-12 50,-1 47,9 C 44,19 36,27 25,30 C 11,35 -13,35 -28,29 " +
         "C -39,27 -47,17 -49,5 C -51,-4 -49,-14 -45,-21 Z");
-    private static readonly Geometry EarLeft = Shape("M -40,-35 Q -40,-51 -36,-56 Q -32,-54 -23,-43 Q -32,-42 -40,-35 Z");
-    private static readonly Geometry EarRight = Shape("M 24,-44 Q 33,-56 35,-57 Q 39,-52 40,-36 Q 35,-41 24,-44 Z");
+    internal static readonly Geometry EarLeft = Shape("M -40,-35 Q -40,-51 -36,-56 Q -32,-54 -23,-43 Q -32,-42 -40,-35 Z");
+    internal static readonly Geometry EarRight = Shape("M 24,-44 Q 33,-56 35,-57 Q 39,-52 40,-36 Q 35,-41 24,-44 Z");
 
-    private static double Limit(double value, double low, double high)
+    internal static double Limit(double value, double low, double high)
     {
         return Math.Max(low, Math.Min(high, value));
     }
 
-    private static double Smooth(double x)
+    internal static double Smooth(double x)
     {
         x = Limit(x, 0, 1);
         return x * x * (3 - 2 * x);
@@ -87,8 +87,8 @@ public static partial class CatArt
 
     private static void TailMood(DrawingContext dc, double t, bool ginger, CatMood mood)
     {
-        double freq = 1.9 + mood.Anger * 3.0 + mood.Crouch * 2.4 - mood.Sleep * 1.2;
-        double amp = 1.0 + mood.Anger * 0.65 + mood.Crouch * 0.75 - mood.Sleep * 0.65;
+        double freq = 1.9 + mood.Anger * 3.0 + mood.Impatient * 3.4 + mood.Crouch * 2.4 - mood.Sleep * 1.2 + mood.HappyPet * 0.45;
+        double amp = 1.0 + mood.Anger * 0.65 + mood.Impatient * 0.72 + mood.Crouch * 0.75 - mood.Sleep * 0.65 + mood.HappyPet * 0.25;
         double wave = Math.Sin(t * freq) * amp;
         double tip = Math.Sin(t * freq - 0.68) * amp;
         double droop = mood.Sleep * 24.0;
@@ -97,7 +97,7 @@ public static partial class CatArt
         if (ginger) Ginger.DrawTailBands(dc, tail, wave, tip);
     }
 
-    private static StreamGeometry BuildTailGeometry(double wave, double tip, double droop)
+    internal static StreamGeometry BuildTailGeometry(double wave, double tip, double droop)
     {
         StreamGeometry tail = new StreamGeometry();
         using (StreamGeometryContext g = tail.Open())
@@ -120,7 +120,7 @@ public static partial class CatArt
                          z*z*z*a.Y+3*z*z*t*b.Y+3*z*t*t*c.Y+t*t*t*d.Y);
     }
 
-    private static StreamGeometry BuildArmGeometry(Point a, Point b, Point c, Point paw, double pawRadius)
+    internal static StreamGeometry BuildArmGeometry(Point a, Point b, Point c, Point paw, double pawRadius)
     {
         StreamGeometry limb = new StreamGeometry { FillRule = FillRule.Nonzero };
         const int count = 24;
@@ -149,7 +149,7 @@ public static partial class CatArt
         return limb;
     }
 
-    private static Point ShoulderPoint(bool left, double lean, double sxScale, double syScale)
+    internal static Point ShoulderPoint(bool left, double lean, double sxScale, double syScale)
     {
         double side = left ? -1 : 1;
         double rawSy = 136.0 - (left ? 10.0 * lean : 0.0);
@@ -158,7 +158,7 @@ public static partial class CatArt
         return new Point(214.0 + side * (23.5 * sxScale + (left ? 3.2 * lean : 0.0)) + sxShear, sy);
     }
 
-    private static void ComputeArmControls(Point a, Point paw, double side, double raised, out Point b, out Point c)
+    internal static void ComputeArmControls(Point a, Point paw, double side, double raised, out Point b, out Point c)
     {
         double dx = paw.X - a.X, dy = paw.Y - a.Y;
         double high = Smooth((185.0 - paw.Y) / 55.0);
@@ -204,7 +204,7 @@ public static partial class CatArt
     }
 
     private static void Eye(DrawingContext dc, double side, double gx, double gy, double blink, bool ginger,
-                            double anger = 0, double angerBreath = 0.5, double crouch = 0)
+                            double anger = 0, double angerBreath = 0.5, double crouch = 0, double happyPet = 0)
     {
         double angle = side*3 + gx*4;
         double x = side*19.1 + gx*2.6;
@@ -212,7 +212,11 @@ public static partial class CatArt
         double width = 13.0 * (1 - Math.Max(0, side*gx)*0.095);
         double height = 12.5 * (1 - blink);
         dc.PushTransform(new RotateTransform(angle,x,y));
-        if (height < 1.6)
+        if (happyPet > 0.32 && blink < 0.85)
+        {
+            DrawHappyEye(dc, x, y, width, ginger ? Ginger.Lid : Lid);
+        }
+        else if (height < 1.6)
         {
             StreamGeometry slit = new StreamGeometry();
             using (StreamGeometryContext g = slit.Open())
@@ -283,14 +287,16 @@ public static partial class CatArt
         double gx=Limit(gazeX,-1,1), gy=Limit(gazeY,-1,1);
         double sleep = Limit(mood.Sleep, 0, 1);
         double crouch = Limit(mood.Crouch, 0, 1);
+        double happy = Limit(mood.HappyPet, 0, 1) * (1 - sleep);
+        double impatient = Limit(mood.Impatient, 0, 1) * (1 - sleep);
         double highLeft = Smooth((195 - leftPaw.Y) / 45);
         double lean=Smooth((157-leftPaw.X)/50) * (1 - sleep) * (1 - highLeft);
         double breath=Math.Sin(t*(sleep > 0.5 ? 1.15 : 1.7))*(sleep > 0.5 ? 1.7 : 0.72);
         double angerBreath = 0.5 + 0.5 * Math.Sin(t * 6.8);
         if (styled) TailStyled(dc,t,style,mood); else TailMood(dc,t,ginger,mood);
 
-        double syScale = 1.0 - 0.45 * sleep - 0.10 * crouch;
-        double sxScale = 1.0 + 0.04 * sleep + 0.04 * crouch;
+        double syScale = 1.0 - 0.45 * sleep - 0.10 * crouch + 0.025 * happy * Math.Sin(t * 5.0);
+        double sxScale = 1.0 + 0.04 * sleep + 0.04 * crouch + 0.02 * happy;
         Brush bodyBrush = siamese ? Siamese.BodyFur : silver ? SilverShaded.BodyFur : coffee ? Coffee.BodyFur : ginger ? Ginger.BodyFur : Fur;
 
         // Keep the hips planted while the chest follows the outstretched mouse paw, and squash cleanly for sleep/crouch.
@@ -333,16 +339,22 @@ public static partial class CatArt
             Arm(dc,true,leftPaw,lean,leftActivity,ginger,pawRaised,sxScale,syScale);
         }
 
-        double hx = 214 - 36.8*lean + gx*3.2*(1 - sleep) - 2.0*sleep;
-        double hyNorm = 86 + breath + gy*2.0 + lean*1.4 + 12.0*crouch;
+        double nuzzleX = mood.PetNuzzleX * 4.5 * happy;
+        double nuzzleY = mood.PetNuzzleY * 2.5 * happy - 1.5 * happy + 2.2 * impatient;
+        double shakeX = impatient > 0.02 ? Math.Sin(t * 26.0) * 1.9 * impatient : 0;
+        double hx = 214 - 36.8*lean + gx*3.2*(1 - sleep) - 2.0*sleep + nuzzleX + shakeX;
+        double hyNorm = 86 + breath + gy*2.0 + lean*1.4 + 12.0*crouch + nuzzleY;
         double hy = hyNorm + (180 + breath - hyNorm) * sleep;
-        double hrot = (gx*2.8 - lean*2.4)*(1 - sleep) - 8.5*sleep;
+        double hrot = (gx*2.8 - lean*2.4 + mood.PetNuzzleX * 6.5 * happy + Math.Sin(t * 5.2) * 2.6 * happy + Math.Sin(t * 22.0) * 2.8 * impatient)*(1 - sleep) - 8.5*sleep;
+        double browAnger = Math.Max(mood.Anger, impatient * 0.92);
         dc.PushTransform(new TranslateTransform(hx, hy));
         dc.PushTransform(new RotateTransform(hrot));
-        if (styled) DrawHeadStyled(dc, style, gx, gy, blink, mood.Anger, angerBreath, crouch);
-        else DrawHeadMood(dc, ginger, gx, gy, blink, mood.Anger, angerBreath, crouch);
+        if (styled) DrawHeadStyled(dc, style, gx, gy, blink, browAnger, angerBreath, crouch, happy);
+        else DrawHeadMood(dc, ginger, gx, gy, blink, browAnger, angerBreath, crouch, happy);
+        if (happy > .05) DrawBlush(dc, happy);
         if (mood.Sweat > .01) DrawSweat(dc, t, mood.Sweat);
         if (mood.Anger > .01) DrawAnger(dc, t, mood.Anger);
+        if (impatient > .05) DrawImpatientMark(dc, t, impatient);
         dc.Pop();
         dc.Pop();
     }
@@ -359,33 +371,50 @@ public static partial class CatArt
     public static bool ContainsHead(CatStyle style, Point pointer, double time,
                                     double gazeX, double gazeY, Point leftPaw)
     {
+        return ContainsCat(style, pointer, time, gazeX, gazeY, leftPaw, 0) == PetZone.Head;
+    }
+
+    public static PetZone ContainsCat(CatStyle style, Point pointer, double time,
+                                      double gazeX, double gazeY, Point leftPaw, double sleep)
+    {
         switch (style)
         {
             case CatStyle.PhotoTabby:
-                return TabbyArt.ContainsHead(pointer,time,gazeX,gazeY,leftPaw);
+                return TabbyArt.ContainsCat(pointer, time, gazeX, gazeY, leftPaw, sleep);
             case CatStyle.JapaneseBobtail:
-                return BobtailArt.ContainsHead(pointer,time,gazeX,gazeY,leftPaw);
+                return BobtailArt.ContainsCat(pointer, time, gazeX, gazeY, leftPaw, sleep);
             default:
-                double lean = Smooth((157 - leftPaw.X) / 50);
-                double hx = 214 - 36.8 * lean + Limit(gazeX, -1, 1) * 3.2;
-                return Math.Pow((pointer.X - hx) / 63, 2) + Math.Pow((pointer.Y - 85) / 53, 2) < 1;
+                double s = Limit(sleep, 0, 1);
+                double highLeft = Smooth((195 - leftPaw.Y) / 45);
+                double lean = Smooth((157 - leftPaw.X) / 50) * (1 - s) * (1 - highLeft);
+                double hx = 214 - 36.8 * lean + Limit(gazeX, -1, 1) * 3.2 * (1 - s) - 2.0 * s;
+                double hy = 86 + (180 - 86) * s;
+                if (Math.Pow((pointer.X - hx) / 60.0, 2) + Math.Pow((pointer.Y - hy) / 52.0, 2) < 1.0)
+                    return PetZone.Head;
+                double bx = 214 - 16.0 * lean;
+                double by = 172 + 26.0 * s;
+                double brx = 58.0;
+                double bry = 66.0 - 22.0 * s;
+                if (Math.Pow((pointer.X - bx) / brx, 2) + Math.Pow((pointer.Y - by) / bry, 2) < 1.0)
+                    return PetZone.Body;
+                return PetZone.None;
         }
     }
 
     private static void DrawHead(DrawingContext dc, bool ginger, double gx, double gy, double blink)
     {
-        DrawHeadMood(dc, ginger, gx, gy, blink, 0, 0.5, 0);
+        DrawHeadMood(dc, ginger, gx, gy, blink, 0, 0.5, 0, 0);
     }
 
     private static void DrawHeadMood(DrawingContext dc, bool ginger, double gx, double gy, double blink,
-                                     double anger, double angerBreath, double crouch)
+                                     double anger, double angerBreath, double crouch, double happyPet = 0)
     {
         dc.DrawGeometry(ginger ? Ginger.HeadFur : Face, null, Head);
         dc.DrawGeometry(ginger ? Ginger.InnerEar : Ear, null, EarLeft);
         dc.DrawGeometry(ginger ? Ginger.InnerEar : Ear, null, EarRight);
         if (ginger) Ginger.DrawFaceMarkings(dc, Head, gx);
-        Eye(dc,-1,gx,gy,Limit(blink,0,1),ginger,anger,angerBreath,crouch);
-        Eye(dc,1,gx,gy,Limit(blink,0,1),ginger,anger,angerBreath,crouch);
+        Eye(dc,-1,gx,gy,Limit(blink,0,1),ginger,anger,angerBreath,crouch,happyPet);
+        Eye(dc,1,gx,gy,Limit(blink,0,1),ginger,anger,angerBreath,crouch,happyPet);
         Whiskers(dc,-1,gx,ginger);
         Whiskers(dc,1,gx,ginger);
     }
@@ -393,8 +422,8 @@ public static partial class CatArt
     // Style-aware variants for Wednesday, Coffee, SilverShaded and Siamese.
     private static void TailStyled(DrawingContext dc, double t, CatStyle style, CatMood mood)
     {
-        double freq = 1.9 + mood.Anger * 3.0 + mood.Crouch * 2.4 - mood.Sleep * 1.2;
-        double amp = 1.0 + mood.Anger * 0.65 + mood.Crouch * 0.75 - mood.Sleep * 0.65;
+        double freq = 1.9 + mood.Anger * 3.0 + mood.Impatient * 3.4 + mood.Crouch * 2.4 - mood.Sleep * 1.2 + mood.HappyPet * 0.45;
+        double amp = 1.0 + mood.Anger * 0.65 + mood.Impatient * 0.72 + mood.Crouch * 0.75 - mood.Sleep * 0.65 + mood.HappyPet * 0.25;
         double wave = Math.Sin(t * freq) * amp;
         double tip = Math.Sin(t * freq - 0.68) * amp;
         double droop = mood.Sleep * 24.0;
@@ -459,7 +488,7 @@ public static partial class CatArt
     }
 
     private static void EyeStyled(DrawingContext dc, double side, double gx, double gy, double blink, CatStyle style,
-                                  double anger = 0, double angerBreath = 0.5, double crouch = 0)
+                                  double anger = 0, double angerBreath = 0.5, double crouch = 0, double happyPet = 0)
     {
         bool coffee = style == CatStyle.Coffee;
         bool wednesday = style == CatStyle.Wednesday;
@@ -475,7 +504,11 @@ public static partial class CatArt
         double width = 13.0 * (1 - Math.Max(0, side*gx)*0.095);
         double height = 12.5 * (1 - blink);
         dc.PushTransform(new RotateTransform(angle,x,y));
-        if (height < 1.6)
+        if (happyPet > 0.32 && blink < 0.85)
+        {
+            DrawHappyEye(dc, x, y, width, lid);
+        }
+        else if (height < 1.6)
         {
             StreamGeometry slit = new StreamGeometry();
             using (StreamGeometryContext g = slit.Open())
@@ -525,7 +558,7 @@ public static partial class CatArt
     }
 
     private static void DrawHeadStyled(DrawingContext dc, CatStyle style, double gx, double gy, double blink,
-                                       double anger = 0, double angerBreath = 0.5, double crouch = 0)
+                                       double anger = 0, double angerBreath = 0.5, double crouch = 0, double happyPet = 0)
     {
         bool coffee = style == CatStyle.Coffee;
         bool silver = style == CatStyle.SilverShaded;
@@ -538,8 +571,8 @@ public static partial class CatArt
         if (coffee) Coffee.DrawFaceMarkings(dc, Head, gx);
         else if (silver) SilverShaded.DrawFaceMarkings(dc, Head, gx);
         else if (siamese) Siamese.DrawFaceMarkings(dc, Head, gx);
-        EyeStyled(dc,-1,gx,gy,Limit(blink,0,1),style,anger,angerBreath,crouch);
-        EyeStyled(dc,1,gx,gy,Limit(blink,0,1),style,anger,angerBreath,crouch);
+        EyeStyled(dc,-1,gx,gy,Limit(blink,0,1),style,anger,angerBreath,crouch,happyPet);
+        EyeStyled(dc,1,gx,gy,Limit(blink,0,1),style,anger,angerBreath,crouch,happyPet);
         WhiskersStyled(dc,-1,gx,style);
         WhiskersStyled(dc,1,gx,style);
     }
