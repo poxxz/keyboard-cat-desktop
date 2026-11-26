@@ -402,11 +402,12 @@ internal sealed partial class SettingsWindow
         shapeSec.Children.Add(MakeSubLabel("胸腹毛色"));
         shapeSec.Children.Add(MakePillWrap(
             bellyPills,
-            new[] { "无", "小围兜", "大白肚", "长毛围脖", "胸口爱心", "虎斑肚点" },
+            new[] { "无", "小围兜", "大白肚", "长毛围脖", "胸口爱心", "虎斑肚点", "燕尾V领", "领带白毛", "胸口小花", "圆滚下腹" },
             new object[]
             {
                 SkinBellyStyle.None, SkinBellyStyle.Bib, SkinBellyStyle.FullBelly,
-                SkinBellyStyle.Ruff, SkinBellyStyle.HeartChest, SkinBellyStyle.TabbyBelly
+                SkinBellyStyle.Ruff, SkinBellyStyle.HeartChest, SkinBellyStyle.TabbyBelly,
+                SkinBellyStyle.TuxedoV, SkinBellyStyle.Necktie, SkinBellyStyle.StarChest, SkinBellyStyle.LowerBelly
             },
             delegate(object v)
             {
@@ -419,11 +420,12 @@ internal sealed partial class SettingsWindow
         shapeSec.Children.Add(MakeSubLabel("身体纹路"));
         shapeSec.Children.Add(MakePillWrap(
             bodyPatternPills,
-            new[] { "纯色", "侧肋条纹", "美短旋涡", "豹纹斑点", "花斑块", "披风背纹" },
+            new[] { "纯色", "侧肋条纹", "美短旋涡", "豹纹斑点", "花斑块", "披风背纹", "奶牛大斑", "鱼骨虎斑", "玳瑁泼墨", "双肩小披肩" },
             new object[]
             {
                 SkinBodyPattern.None, SkinBodyPattern.FlankStripes, SkinBodyPattern.ClassicSwirl,
-                SkinBodyPattern.Spotted, SkinBodyPattern.Patches, SkinBodyPattern.BackSaddle
+                SkinBodyPattern.Spotted, SkinBodyPattern.Patches, SkinBodyPattern.BackSaddle,
+                SkinBodyPattern.CowMottled, SkinBodyPattern.Mackerel, SkinBodyPattern.TortieMottle, SkinBodyPattern.ShoulderCape
             },
             delegate(object v)
             {

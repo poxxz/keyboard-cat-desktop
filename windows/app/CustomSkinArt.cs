@@ -283,6 +283,14 @@ internal static class CustomSkinArt
         "M 196,152 Q 214,158 232,152 Q 214,163 196,152 Z " +
         "M 192,172 Q 214,178 236,172 Q 214,183 192,172 Z " +
         "M 195,193 Q 214,198 233,193 Q 214,203 195,193 Z");
+    private static readonly Geometry TuxedoVShort = Parse(
+        "M 183,102 L 245,102 C 242,126 230,152 214,178 C 198,152 186,126 183,102 Z");
+    private static readonly Geometry NecktieShort = Parse(
+        "M 205,103 L 223,103 C 221,128 224,162 222,196 Q 214,210 206,196 C 204,162 207,128 205,103 Z");
+    private static readonly Geometry StarChestShort = Parse(
+        "M 214,121 Q 219,136 232,140 Q 219,144 214,159 Q 209,144 196,140 Q 209,136 214,121 Z");
+    private static readonly Geometry LowerBellyShort = Parse(
+        "M 182,172 C 194,158 234,158 246,172 C 256,188 258,214 252,239 L 176,239 C 170,214 172,188 182,172 Z");
 
     private static readonly Geometry FlanksShort = Parse(
         "M 155,168 C 167,166 174,170 181,176 Q 169,173 157,176 Z " +
@@ -308,6 +316,25 @@ internal static class CustomSkinArt
     private static readonly Geometry BackSaddleShort = Parse(
         "M 152,102 L 194,102 C 186,136 184,174 190,212 L 150,212 Z " +
         "M 234,102 L 276,102 L 278,212 L 238,212 C 244,174 242,136 234,102 Z");
+    private static readonly Geometry CowMottledShort = Parse(
+        "M 164,114 C 184,110 198,124 194,146 C 188,162 168,166 158,154 Z " +
+        "M 268,128 C 246,124 232,142 238,168 C 244,188 264,192 272,180 Z " +
+        "M 156,184 C 172,178 190,192 186,214 C 182,228 164,232 154,224 Z " +
+        "M 222,198 A 10,8 0 1 1 221.9,198 Z");
+    private static readonly Geometry MackerelShort = Parse(
+        "M 160,128 Q 178,126 190,136 Q 176,134 159,136 Z M 156,148 Q 177,146 190,157 Q 175,154 155,157 Z " +
+        "M 154,169 Q 176,167 188,178 Q 174,175 153,178 Z M 156,191 Q 175,189 186,199 Q 173,197 155,200 Z " +
+        "M 266,128 Q 248,126 236,136 Q 250,134 267,136 Z M 270,148 Q 249,146 236,157 Q 251,154 271,157 Z " +
+        "M 272,169 Q 250,167 238,178 Q 252,175 273,178 Z M 270,191 Q 251,189 240,199 Q 253,197 271,200 Z");
+    private static readonly Geometry TortieMottleShort = Parse(
+        "M 164,122 C 180,118 194,132 186,148 C 176,158 160,152 158,138 Z " +
+        "M 244,120 C 260,116 270,132 262,148 C 252,158 238,148 238,134 Z " +
+        "M 192,158 C 208,152 224,162 218,178 C 208,188 188,182 186,168 Z " +
+        "M 158,178 C 174,174 186,188 178,204 C 168,214 154,206 154,192 Z " +
+        "M 242,174 C 258,170 272,184 264,202 C 254,214 236,204 236,188 Z " +
+        "M 204,202 C 220,196 236,208 230,224 C 220,234 200,228 198,214 Z");
+    private static readonly Geometry ShoulderCapeShort = Parse(
+        "M 164,100 L 264,100 L 270,152 C 252,164 234,156 214,146 C 194,156 176,164 158,152 Z");
 
     // Body markings (fluffy longhair local coordinates around 0, 58).
     private static readonly Geometry FullBellyFluffy = Parse(
@@ -317,6 +344,14 @@ internal static class CustomSkinArt
         "C 1,28 3,25 7,25 C 13,25 20,30 20,39 C 20,52 4,64 0,68 Z");
     private static readonly Geometry TabbyBellySpotsFluffy = Parse(
         "M -18,52 Q 0,58 18,52 Q 0,63 -18,52 Z M -20,74 Q 0,80 20,74 Q 0,85 -20,74 Z");
+    private static readonly Geometry TuxedoVFluffy = Parse(
+        "M -28,0 L 28,0 C 26,24 15,48 0,72 C -15,48 -26,24 -28,0 Z");
+    private static readonly Geometry NecktieFluffy = Parse(
+        "M -9,0 L 9,0 C 7,26 10,58 8,90 Q 0,104 -8,90 C -10,58 -7,26 -9,0 Z");
+    private static readonly Geometry StarChestFluffy = Parse(
+        "M 0,20 Q 5,34 18,38 Q 5,42 0,56 Q -5,42 -18,38 Q -5,34 0,20 Z");
+    private static readonly Geometry LowerBellyFluffy = Parse(
+        "M -28,60 C -16,46 16,46 28,60 C 36,76 38,98 30,122 L -30,122 C -38,98 -36,76 -28,60 Z");
     private static readonly Geometry FlanksFluffy = Parse(
         "M -56,56 C -42,54 -34,58 -28,64 Q -40,61 -54,64 Z " +
         "M -55,70 Q -40,68 -30,76 Q -42,73 -55,78 Z " +
@@ -334,6 +369,25 @@ internal static class CustomSkinArt
     private static readonly Geometry BackSaddleFluffy = Parse(
         "M -58,0 L -22,0 C -28,34 -30,68 -24,104 L -58,104 Z " +
         "M 22,0 L 58,0 L 58,104 L 24,104 C 30,68 28,34 22,0 Z");
+    private static readonly Geometry CowMottledFluffy = Parse(
+        "M -46,12 C -26,8 -14,22 -18,44 C -24,60 -42,64 -52,52 Z " +
+        "M 54,24 C 32,20 18,38 24,64 C 30,84 48,88 56,76 Z " +
+        "M -54,78 C -38,72 -22,86 -26,106 C -30,118 -46,122 -56,114 Z " +
+        "M 10,88 A 9,7 0 1 1 9.9,88 Z");
+    private static readonly Geometry MackerelFluffy = Parse(
+        "M -48,22 Q -30,20 -18,30 Q -32,28 -49,30 Z M -54,44 Q -32,42 -19,53 Q -34,50 -55,53 Z " +
+        "M -56,66 Q -34,64 -21,75 Q -36,72 -57,75 Z M -54,88 Q -35,86 -24,96 Q -37,94 -55,97 Z " +
+        "M 48,22 Q 30,20 18,30 Q 32,28 49,30 Z M 54,44 Q 32,42 19,53 Q 34,50 55,53 Z " +
+        "M 56,66 Q 34,64 21,75 Q 36,72 57,75 Z M 54,88 Q 35,86 24,96 Q 37,94 55,97 Z");
+    private static readonly Geometry TortieMottleFluffy = Parse(
+        "M -46,18 C -30,14 -16,28 -24,44 C -34,54 -50,48 -52,34 Z " +
+        "M 30,16 C 46,12 56,28 48,44 C 38,54 24,44 24,30 Z " +
+        "M -20,54 C -4,48 12,58 6,74 C -4,84 -24,78 -26,64 Z " +
+        "M -54,74 C -38,70 -26,84 -34,100 C -44,110 -58,102 -58,88 Z " +
+        "M 28,70 C 44,66 58,80 50,98 C 40,110 22,100 22,84 Z " +
+        "M -8,96 C 8,90 24,102 18,118 C 8,124 -12,120 -14,108 Z");
+    private static readonly Geometry ShoulderCapeFluffy = Parse(
+        "M -46,-5 L 46,-5 L 54,48 C 36,60 18,52 0,42 C -18,52 -36,60 -54,48 Z");
 
     private static readonly Geometry FrontSock = Parse(
         "M -9.2,1 C -10,-4 -9.9,-9 -7.3,-10.7 Q -5,-12 -2,-10.8 Q 1,-9.3 3.2,-10.7 " +
@@ -699,6 +753,24 @@ internal static class CustomSkinArt
                 dc.DrawGeometry(skin.AccentBrush, null, BackSaddleShort);
                 dc.Pop();
                 break;
+            case SkinBodyPattern.CowMottled:
+                dc.DrawGeometry(skin.AccentBrush, null, CowMottledShort);
+                break;
+            case SkinBodyPattern.Mackerel:
+                dc.PushOpacity(.76);
+                dc.DrawGeometry(skin.AccentBrush, null, MackerelShort);
+                dc.Pop();
+                break;
+            case SkinBodyPattern.TortieMottle:
+                dc.PushOpacity(.82);
+                dc.DrawGeometry(skin.AccentBrush, null, TortieMottleShort);
+                dc.Pop();
+                break;
+            case SkinBodyPattern.ShoulderCape:
+                dc.PushOpacity(.84);
+                dc.DrawGeometry(skin.AccentBrush, null, ShoulderCapeShort);
+                dc.Pop();
+                break;
         }
 
         switch (skin.Data.BellyStyle)
@@ -718,6 +790,18 @@ internal static class CustomSkinArt
                 dc.PushOpacity(.46);
                 dc.DrawGeometry(skin.AccentBrush, null, TabbyBellySpotsShort);
                 dc.Pop();
+                break;
+            case SkinBellyStyle.TuxedoV:
+                dc.DrawGeometry(skin.BellyBrush, null, TuxedoVShort);
+                break;
+            case SkinBellyStyle.Necktie:
+                dc.DrawGeometry(skin.BellyBrush, null, NecktieShort);
+                break;
+            case SkinBellyStyle.StarChest:
+                dc.DrawGeometry(skin.BellyBrush, null, StarChestShort);
+                break;
+            case SkinBellyStyle.LowerBelly:
+                dc.DrawGeometry(skin.BellyBrush, null, LowerBellyShort);
                 break;
         }
         dc.Pop();
@@ -751,6 +835,24 @@ internal static class CustomSkinArt
                 dc.DrawGeometry(skin.AccentBrush, null, BackSaddleFluffy);
                 dc.Pop();
                 break;
+            case SkinBodyPattern.CowMottled:
+                dc.DrawGeometry(skin.AccentBrush, null, CowMottledFluffy);
+                break;
+            case SkinBodyPattern.Mackerel:
+                dc.PushOpacity(.72);
+                dc.DrawGeometry(skin.AccentBrush, null, MackerelFluffy);
+                dc.Pop();
+                break;
+            case SkinBodyPattern.TortieMottle:
+                dc.PushOpacity(.80);
+                dc.DrawGeometry(skin.AccentBrush, null, TortieMottleFluffy);
+                dc.Pop();
+                break;
+            case SkinBodyPattern.ShoulderCape:
+                dc.PushOpacity(.82);
+                dc.DrawGeometry(skin.AccentBrush, null, ShoulderCapeFluffy);
+                dc.Pop();
+                break;
         }
 
         switch (skin.Data.BellyStyle)
@@ -767,6 +869,18 @@ internal static class CustomSkinArt
                 dc.PushOpacity(.44);
                 dc.DrawGeometry(skin.AccentBrush, null, TabbyBellySpotsFluffy);
                 dc.Pop();
+                break;
+            case SkinBellyStyle.TuxedoV:
+                dc.DrawGeometry(skin.BellyBrush, null, TuxedoVFluffy);
+                break;
+            case SkinBellyStyle.Necktie:
+                dc.DrawGeometry(skin.BellyBrush, null, NecktieFluffy);
+                break;
+            case SkinBellyStyle.StarChest:
+                dc.DrawGeometry(skin.BellyBrush, null, StarChestFluffy);
+                break;
+            case SkinBellyStyle.LowerBelly:
+                dc.DrawGeometry(skin.BellyBrush, null, LowerBellyFluffy);
                 break;
         }
         dc.Pop();

@@ -7,8 +7,8 @@ using System.Xml.Linq;
 
 public enum SkinBodyBase { ShortHair, ChubbyBritish, FoldEar, FluffyLong }
 public enum SkinFacePattern { None, AmericanShorthair, RagdollMask, BlueBicolor, CoffeeMask, TabbyM, SiamesePoint, Tuxedo, Calico, CowSpots, Tortie }
-public enum SkinBellyStyle { None, Bib, FullBelly, Ruff, HeartChest, TabbyBelly }
-public enum SkinBodyPattern { None, FlankStripes, ClassicSwirl, Spotted, Patches, BackSaddle }
+public enum SkinBellyStyle { None, Bib, FullBelly, Ruff, HeartChest, TabbyBelly, TuxedoV, Necktie, StarChest, LowerBelly }
+public enum SkinBodyPattern { None, FlankStripes, ClassicSwirl, Spotted, Patches, BackSaddle, CowMottled, Mackerel, TortieMottle, ShoulderCape }
 public enum SkinPawStyle { BodyColor, Socks, HighBoots, DarkPoints, TabbyBracelets }
 public enum SkinTailStyle { Solid, ThickPlush, TabbyRings, LightTip, DarkTip, BobtailPom }
 public enum SkinPupilStyle { SleekOval, RoundCute, BeadMatte }
@@ -220,7 +220,7 @@ internal sealed class CatSkinData
                 d.WhiskerColor = "#B8B2AA"; d.LeftEyeColor = "#9AD64C"; d.RightEyeColor = "#9AD64C";
                 d.PupilStyle = SkinPupilStyle.BeadMatte;
                 d.FacePattern = SkinFacePattern.CowSpots; d.BellyStyle = SkinBellyStyle.None;
-                d.BodyPattern = SkinBodyPattern.Patches; d.PawStyle = SkinPawStyle.BodyColor;
+                d.BodyPattern = SkinBodyPattern.CowMottled; d.PawStyle = SkinPawStyle.BodyColor;
                 d.TailStyle = SkinTailStyle.DarkTip; d.Accessory = SkinAccessory.CollarBell;
                 d.AccessoryColor = "#E46652";
                 return d;
@@ -232,7 +232,7 @@ internal sealed class CatSkinData
                 d.PawColor = "#FAF8F4"; d.InnerEarColor = "#E6A6A4"; d.NoseColor = "#E49498";
                 d.WhiskerColor = "#F4F2EE"; d.LeftEyeColor = "#F0B832"; d.RightEyeColor = "#F0B832";
                 d.PupilStyle = SkinPupilStyle.RoundCute;
-                d.FacePattern = SkinFacePattern.Tuxedo; d.BellyStyle = SkinBellyStyle.FullBelly;
+                d.FacePattern = SkinFacePattern.Tuxedo; d.BellyStyle = SkinBellyStyle.TuxedoV;
                 d.BodyPattern = SkinBodyPattern.None; d.PawStyle = SkinPawStyle.Socks;
                 d.TailStyle = SkinTailStyle.LightTip; d.Accessory = SkinAccessory.BowTie;
                 d.AccessoryColor = "#E46652";
