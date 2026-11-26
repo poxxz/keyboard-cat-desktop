@@ -578,14 +578,15 @@ internal sealed partial class SettingsWindow
 
         // Section 4: Cute Vector Accessories
         StackPanel accSec = new StackPanel();
-        accSec.Children.Add(MakeSectionHeader("可爱配饰", "随头部动作自然跟随"));
+        accSec.Children.Add(MakeSectionHeader("可爱配饰", "支持头饰、翅膀与光环"));
         accSec.Children.Add(MakePillWrap(
             accPills,
-            new[] { "无配饰", "铃铛项圈", "蝴蝶结", "头顶发带", "小圆眼镜", "头顶橘子", "呆毛" },
+            new[] { "无配饰", "铃铛项圈", "蝴蝶结", "头顶发带", "小圆眼镜", "头顶橘子", "呆毛", "魔法帽", "天使小翅膀", "恶魔小翅膀", "迷你皇冠", "天使光环" },
             new object[]
             {
                 SkinAccessory.None, SkinAccessory.CollarBell, SkinAccessory.BowTie,
-                SkinAccessory.HeadRibbon, SkinAccessory.Glasses, SkinAccessory.HeadOrange, SkinAccessory.Ahoge
+                SkinAccessory.HeadRibbon, SkinAccessory.Glasses, SkinAccessory.HeadOrange, SkinAccessory.Ahoge,
+                SkinAccessory.WizardHat, SkinAccessory.AngelWings, SkinAccessory.DevilWings, SkinAccessory.Crown, SkinAccessory.Halo
             },
             delegate(object v)
             {
@@ -597,7 +598,7 @@ internal sealed partial class SettingsWindow
 
         UIElement accColorEl = AddColorPicker(
             "配饰颜色",
-            new[] { "#E46652", "#EC8298", "#5B9AD6", "#5CC4A0", "#F59824", "#9A80D6", "#6D543D", "#E8C466" },
+            new[] { "#FFFDF8", "#F4C444", "#7C5CC4", "#E46652", "#EC8298", "#5B9AD6", "#5CC4A0", "#3A3342" },
             delegate { return editingSkin.AccessoryColor; },
             delegate(string h) { editingSkin.AccessoryColor = h; },
             out accColorPicker);
@@ -1355,8 +1356,8 @@ internal sealed partial class SettingsWindow
         DrawingGroup art = new DrawingGroup();
         using (DrawingContext dc = art.Open())
         {
-            // Keep consistent full-cat bounds across ShortHair (right tail) and FluffyLong (left tail).
-            dc.DrawRectangle(Brushes.Transparent, null, new Rect(102, 14, 238, 232));
+            // Keep consistent full-cat bounds across ShortHair (right tail), FluffyLong (left tail), WizardHat & wings.
+            dc.DrawRectangle(Brushes.Transparent, null, new Rect(96, 2, 248, 244));
             CustomSkinArt.Draw(
                 dc, compiled, 0.85, gx, gy, blink,
                 new Point(176, 224), new Point(252, 224), 0, 0, -1, null, mood);

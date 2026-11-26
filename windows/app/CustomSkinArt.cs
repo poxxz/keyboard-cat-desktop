@@ -34,6 +34,8 @@ internal sealed class CompiledSkin
     public readonly Pen WhiskerRootPen;
     public readonly Pen LipPen;
     public readonly Pen AccEdgePen;
+    public readonly Pen AccGlowPen;
+    public readonly Pen AccHaloPen;
     public readonly Pen FoldCreasePen;
     public readonly Color FurLightColor;
     public readonly Color FurDarkColor;
@@ -88,6 +90,8 @@ internal sealed class CompiledSkin
         AccPrimary = RelWash(Adjust(acc, 1.12, 10), Adjust(acc, 0.82, -6), new Point(.2, 0), new Point(.8, 1));
         AccHighlight = Solid(Color.FromArgb(190, 255, 252, 242));
         AccEdgePen = MakePen(Adjust(acc, 0.56, -12), 1.15);
+        AccGlowPen = MakePen(Color.FromArgb(95, acc.R, acc.G, acc.B), 5.6);
+        AccHaloPen = MakePen(Adjust(acc, 1.08, 12), 2.8);
         FoldCreasePen = MakePen(Adjust(fur, 0.62, -14), 1.45);
 
         Color lidColor = darkFur ? Adjust(leftEye, 0.95, 0) : Adjust(fur, 0.48, -14);
@@ -413,6 +417,17 @@ internal static class CustomSkinArt
     private static readonly Geometry RibbonRight = Parse("M 0,0 C 7,-6 16,-5 14,2 C 12,8 5,7 0,2 Z");
     private static readonly Geometry OrangeLeaf = Parse("M 1,-9 C 5,-14 11,-13 11,-8 C 8,-6 4,-6 1,-9 Z");
     private static readonly Geometry AhogeShape = Parse("M -2,-44 C -9,-58 -2,-70 9,-66 C 1,-64 1,-54 4,-44 Z");
+    private static readonly Geometry WizardHatBrim = Parse("M -39,-43 Q 0,-34 39,-43 Q 43,-47 32,-50 Q 0,-42 -32,-50 Q -43,-47 -39,-43 Z");
+    private static readonly Geometry WizardHatCone = Parse("M -24,-45 C -20,-62 -10,-76 3,-80 C 12,-82 22,-76 26,-68 C 16,-70 10,-66 13,-58 C 18,-52 21,-48 24,-45 Q 0,-39 -24,-45 Z");
+    private static readonly Geometry WizardHatBand = Parse("M -22.5,-46.5 Q 0,-40 22.5,-46.5 L 20.5,-52.5 Q 0,-46 -20.5,-52.5 Z");
+    private static readonly Geometry WizardHatStar = Parse("M 0,-54.5 L 1.6,-50.6 L 5.6,-49.6 L 2.2,-47.3 L 3.2,-43.4 L 0,-45.7 L -3.2,-43.4 L -2.2,-47.3 L -5.6,-49.6 L -1.6,-50.6 Z");
+    private static readonly Geometry AngelWingLeft = Parse("M 0,0 C -18,-26 -46,-36 -58,-22 C -64,-15 -56,-4 -44,0 C -58,4 -60,16 -46,20 C -52,26 -46,36 -30,32 C -18,30 -6,22 0,14 Z");
+    private static readonly Geometry AngelWingFeather = Parse("M -12,-6 Q -32,-14 -46,-10 M -12,4 Q -30,4 -42,10");
+    private static readonly Geometry DevilWingLeft = Parse("M 0,2 C -16,-22 -42,-34 -56,-22 C -46,-14 -44,-4 -52,4 C -40,2 -32,10 -36,20 C -24,14 -14,20 -14,28 C -6,20 -2,16 0,14 Z");
+    private static readonly Geometry DevilWingRib = Parse("M -4,4 Q -24,-10 -44,-14 M -4,9 Q -22,4 -36,6");
+    private static readonly Geometry DevilHornLeft = Parse("M -18,-44 C -23,-53 -23,-63 -14,-66 C -15,-59 -12,-52 -8,-45 Z");
+    private static readonly Geometry DevilHornRight = Parse("M 18,-44 C 23,-53 23,-63 14,-66 C 15,-59 12,-52 8,-45 Z");
+    private static readonly Geometry CrownShape = Parse("M -18,-44 L -22,-65 L -10,-54 L 0,-70 L 10,-54 L 22,-65 L 18,-44 Q 0,-40 -18,-44 Z");
     private static readonly Brush BellGold = MakeGrad(Color.FromRgb(255, 226, 108), Color.FromRgb(226, 158, 28));
     private static readonly Pen BellEdge = MakePen(Color.FromRgb(142, 92, 16), 1.0);
     private static readonly Brush LeafGreen = MakeGrad(Color.FromRgb(124, 198, 88), Color.FromRgb(68, 144, 52));
@@ -420,6 +435,8 @@ internal static class CustomSkinArt
     private static readonly Brush GlassLens = MakeSolid(Color.FromArgb(46, 224, 244, 255));
     private static readonly Pen GlassGlint = MakePen(Color.FromArgb(185, 255, 255, 255), 1.15);
     private static readonly Brush NoseGlint = MakeSolid(Color.FromArgb(140, 255, 232, 232));
+    private static readonly Brush GemRuby = MakeSolid(Color.FromRgb(234, 88, 104));
+    private static readonly Brush GemAqua = MakeSolid(Color.FromRgb(112, 206, 244));
 
     private static Geometry Parse(string s) { Geometry g = Geometry.Parse(s); g.Freeze(); return g; }
     private static Brush MakeSolid(Color c) { SolidColorBrush b = new SolidColorBrush(c); b.Freeze(); return b; }
@@ -449,6 +466,10 @@ internal static class CustomSkinArt
         double happy = CatArt.Limit(mood.HappyPet, 0, 1);
         double impatient = CatArt.Limit(mood.Impatient, 0, 1);
         double anger = Math.Max(mood.Anger, impatient * 0.92);
+        if (skin.Data.Accessory == SkinAccessory.AngelWings || skin.Data.Accessory == SkinAccessory.DevilWings)
+        {
+            DrawBackWings(dc, skin, 0.35, 0, 14.0, 0.64, 0);
+        }
         DrawHead(dc, skin, gx, gy, blink, anger, 0.75, mood.Crouch, happy);
         if (happy > .05) CatArt.DrawBlush(dc, happy);
         if (mood.Anger > .01) CatArt.DrawAnger(dc, 0.4, mood.Anger);
@@ -478,8 +499,14 @@ internal static class CustomSkinArt
         double syScale = 1.0 - 0.45 * sleep - 0.10 * crouch + 0.025 * happy * Math.Sin(t * 5.0) + 0.075 * lift;
         double sxScale = (1.0 + 0.04 * sleep + 0.04 * crouch + 0.02 * happy - 0.065 * lift) * baseWidthFactor;
 
-        // 1. Tail
+        // 1. Tail & optional back wings (AngelWings / DevilWings)
         DrawTail(dc, skin, fluffy, t, mood, happy, impatient, sleep, crouch, lift);
+        if (skin.Data.Accessory == SkinAccessory.AngelWings || skin.Data.Accessory == SkinAccessory.DevilWings)
+        {
+            double wingY = 152.0 + 28.0 * sleep + 8.0 * crouch + 4.0 * lift;
+            double wingX = 214.0 - 16.0 * lean - 4.0 * lift;
+            DrawBackWings(dc, skin, t, wingX, wingY, baseWidthFactor * (1.0 - 0.14 * sleep), happy + lift * 0.6);
+        }
 
         // 2. Torso
         double torsoShear = lean * 0.282 - lift * 0.13;
@@ -1225,6 +1252,41 @@ internal static class CustomSkinArt
         }
     }
 
+    private static void DrawBackWings(DrawingContext dc, CompiledSkin skin, double t, double cx, double cy, double scale, double excited)
+    {
+        bool angel = skin.Data.Accessory == SkinAccessory.AngelWings;
+        Geometry wingGeo = angel ? AngelWingLeft : DevilWingLeft;
+        Geometry detailGeo = angel ? AngelWingFeather : DevilWingRib;
+        double flapFreq = 3.8 + excited * 3.6;
+        double flapAmp = 5.5 + excited * 4.5;
+        double flap = Math.Sin(t * flapFreq) * flapAmp;
+        double spreadX = 36.0 * scale;
+
+        // Left wing
+        dc.PushTransform(new TranslateTransform(cx - spreadX, cy));
+        dc.PushTransform(new ScaleTransform(scale, scale));
+        dc.PushTransform(new RotateTransform(flap));
+        dc.DrawGeometry(skin.AccPrimary, skin.AccEdgePen, wingGeo);
+        dc.PushOpacity(0.55);
+        dc.DrawGeometry(null, skin.AccEdgePen, detailGeo);
+        dc.Pop();
+        dc.Pop();
+        dc.Pop();
+        dc.Pop();
+
+        // Right wing (mirrored)
+        dc.PushTransform(new TranslateTransform(cx + spreadX, cy));
+        dc.PushTransform(new ScaleTransform(-scale, scale));
+        dc.PushTransform(new RotateTransform(flap));
+        dc.DrawGeometry(skin.AccPrimary, skin.AccEdgePen, wingGeo);
+        dc.PushOpacity(0.55);
+        dc.DrawGeometry(null, skin.AccEdgePen, detailGeo);
+        dc.Pop();
+        dc.Pop();
+        dc.Pop();
+        dc.Pop();
+    }
+
     private static void DrawAccessory(DrawingContext dc, CompiledSkin skin)
     {
         switch (skin.Data.Accessory)
@@ -1273,6 +1335,37 @@ internal static class CustomSkinArt
 
             case SkinAccessory.Ahoge:
                 dc.DrawGeometry(skin.HeadFur, skin.EyeEdgePen, AhogeShape);
+                break;
+
+            case SkinAccessory.WizardHat:
+                dc.PushTransform(new RotateTransform(-5.0, 0, -45.0));
+                dc.DrawGeometry(skin.AccPrimary, skin.AccEdgePen, WizardHatBrim);
+                dc.DrawGeometry(skin.AccPrimary, skin.AccEdgePen, WizardHatCone);
+                dc.DrawGeometry(BellGold, BellEdge, WizardHatBand);
+                dc.DrawGeometry(BellGold, BellEdge, WizardHatStar);
+                dc.Pop();
+                break;
+
+            case SkinAccessory.DevilWings:
+                // Cute matching devil horns atop the head (paired with fluttering back bat wings).
+                dc.DrawGeometry(skin.AccPrimary, skin.AccEdgePen, DevilHornLeft);
+                dc.DrawGeometry(skin.AccPrimary, skin.AccEdgePen, DevilHornRight);
+                break;
+
+            case SkinAccessory.Crown:
+                dc.DrawGeometry(skin.AccPrimary, skin.AccEdgePen, CrownShape);
+                dc.DrawEllipse(GemRuby, BellEdge, new Point(0, -51.5), 2.8, 2.8);
+                dc.DrawEllipse(GemAqua, BellEdge, new Point(-9.5, -49.5), 2.0, 2.0);
+                dc.DrawEllipse(GemAqua, BellEdge, new Point(9.5, -49.5), 2.0, 2.0);
+                dc.DrawEllipse(BellGold, BellEdge, new Point(-22, -65.5), 2.1, 2.1);
+                dc.DrawEllipse(BellGold, BellEdge, new Point(0, -70.5), 2.4, 2.4);
+                dc.DrawEllipse(BellGold, BellEdge, new Point(22, -65.5), 2.1, 2.1);
+                break;
+
+            case SkinAccessory.Halo:
+                dc.DrawEllipse(null, skin.AccGlowPen, new Point(0, -70.0), 25.0, 6.8);
+                dc.DrawEllipse(null, skin.AccHaloPen, new Point(0, -70.0), 25.0, 6.8);
+                dc.DrawEllipse(skin.AccHighlight, null, new Point(-9.0, -74.5), 5.0, 1.3);
                 break;
         }
     }

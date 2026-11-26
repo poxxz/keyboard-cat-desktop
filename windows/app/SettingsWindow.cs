@@ -1489,8 +1489,8 @@ internal sealed partial class SettingsWindow : Window
         DrawingGroup art = new DrawingGroup();
         using (DrawingContext dc = art.Open())
         {
-            // Keep consistent portrait bounds across short/fluffy bases and accessories.
-            dc.DrawRectangle(Brushes.Transparent, null, new Rect(-56, -70, 112, 116));
+            // Keep consistent portrait bounds across short/fluffy bases, hats, and wings.
+            dc.DrawRectangle(Brushes.Transparent, null, new Rect(-64, -84, 128, 130));
             CustomSkinArt.DrawPortrait(dc, compiled);
         }
         art.Freeze();

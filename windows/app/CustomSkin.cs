@@ -12,7 +12,7 @@ public enum SkinBodyPattern { None, FlankStripes, ClassicSwirl, Spotted, Patches
 public enum SkinPawStyle { BodyColor, Socks, HighBoots, DarkPoints, TabbyBracelets }
 public enum SkinTailStyle { Solid, ThickPlush, TabbyRings, LightTip, DarkTip, BobtailPom }
 public enum SkinPupilStyle { SleekOval, RoundCute, BeadMatte }
-public enum SkinAccessory { None, CollarBell, BowTie, HeadRibbon, Glasses, HeadOrange, Ahoge }
+public enum SkinAccessory { None, CollarBell, BowTie, HeadRibbon, Glasses, HeadOrange, Ahoge, WizardHat, AngelWings, DevilWings, Crown, Halo }
 
 // Pure-vector user-customizable cat skin data (.catskin XML).
 internal sealed class CatSkinData
