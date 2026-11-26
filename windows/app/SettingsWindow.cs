@@ -178,7 +178,7 @@ internal sealed partial class SettingsWindow : Window
         ResizeMode = ResizeMode.NoResize;
         ShowInTaskbar = false;
         Topmost = true;
-        Width = 668;
+        Width = 684;
         SizeToContent = SizeToContent.Height;
         FontFamily = UiFont;
         UseLayoutRounding = true;
@@ -192,7 +192,18 @@ internal sealed partial class SettingsWindow : Window
 
         PreviewKeyDown += delegate(object s, KeyEventArgs e)
         {
-            if (e.Key == Key.Escape) { Hide(); e.Handled = true; }
+            if (e.Key == Key.Escape)
+            {
+                if (colorWheelPopup != null && colorWheelPopup.IsOpen)
+                {
+                    colorWheelPopup.IsOpen = false;
+                }
+                else
+                {
+                    Hide();
+                }
+                e.Handled = true;
+            }
         };
         Closing += delegate(object s, System.ComponentModel.CancelEventArgs e)
         {
@@ -564,6 +575,7 @@ internal sealed partial class SettingsWindow : Window
 
     private void SelectTab(int index)
     {
+        if (colorWheelPopup != null && colorWheelPopup.IsOpen) colorWheelPopup.IsOpen = false;
         activeTab = index;
         for (int i = 0; i < tabPanels.Count; ++i)
         {
@@ -759,7 +771,7 @@ internal sealed partial class SettingsWindow : Window
 
         // Compact custom skins quick row (fixed height so adding skins never changes window height)
         catSec.Children.Add(new Border { Height = 1, Background = DividerBrush, Margin = new Thickness(0, 7, 0, 7) });
-        DockPanel customHead = new DockPanel { Margin = new Thickness(0, 0, 0, 5) };
+        DockPanel customHead = new DockPanel { LastChildFill = false, Margin = new Thickness(0, 0, 0, 5) };
         TextBlock customTitle = new TextBlock
         {
             Text = "我的自定义皮肤",
@@ -777,8 +789,9 @@ internal sealed partial class SettingsWindow : Window
             BorderBrush = BrushOf(0xE8C068),
             BorderThickness = new Thickness(1),
             CornerRadius = new CornerRadius(8),
-            Padding = new Thickness(8, 2, 8, 2),
+            Padding = new Thickness(9, 2.5, 9, 2.5),
             Cursor = Cursors.Hand,
+            HorizontalAlignment = HorizontalAlignment.Right,
             VerticalAlignment = VerticalAlignment.Center,
             Child = new TextBlock
             {
@@ -1122,7 +1135,7 @@ internal sealed partial class SettingsWindow : Window
         });
         petTip.Children.Add(new TextBlock
         {
-            Text = "鼠标移到小猫头或身体上将切换为抚摸手势：轻揉或轻点会开心眯眼冒爱心与星星，揉得太快会不耐烦；按住不动 0.35 秒即可揪起后颈皮抱着键鼠拖动位置。",
+            Text = "鼠标移到小猫头或身体上将切换为抚摸手势：轻揉或轻点会开心眯眼冒爱心与星星，揉得太快会不耐烦；按住不动 0.2 秒即可侧身提起抱着键鼠拖动位置。",
             FontSize = 11,
             Foreground = BrushOf(0x7C6B59),
             TextWrapping = TextWrapping.Wrap,
@@ -1167,7 +1180,7 @@ internal sealed partial class SettingsWindow : Window
 
         // Quick window actions
         StackPanel actSec = new StackPanel();
-        actSec.Children.Add(MakeSectionHeader("窗口操作", "长按小猫 0.35 秒也可直接拖动位置"));
+        actSec.Children.Add(MakeSectionHeader("窗口操作", "长按小猫 0.2 秒也可直接提起拖动位置"));
         Grid btnGrid = new Grid { Margin = new Thickness(-3, 0, -3, 0) };
         btnGrid.ColumnDefinitions.Add(new ColumnDefinition { Width = new GridLength(1, GridUnitType.Star) });
         btnGrid.ColumnDefinitions.Add(new ColumnDefinition { Width = new GridLength(1, GridUnitType.Star) });

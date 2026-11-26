@@ -39,7 +39,7 @@ internal static class Program
 
 internal sealed class PetWindow : Window
 {
-    private const double LongPressDragSeconds = 0.35;
+    private const double LongPressDragSeconds = 0.20;
     private const double HoldCancelDistance = 12.0;
 
     private readonly Preferences settings = Preferences.Load();

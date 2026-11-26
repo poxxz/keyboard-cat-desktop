@@ -1042,7 +1042,11 @@ internal static class CustomSkinArt
             }
             dc.Pop();
             if (anger > .01)
+            {
+                dc.PushClip(new EllipseGeometry(new Point(x, y), width + 1.3, height + 1.3));
                 CatArt.DrawAngryEyelid(dc, x, y, width, height, side, skin.LidFur, skin.LidPen, anger, angerBreath);
+                dc.Pop();
+            }
         }
         dc.Pop();
     }

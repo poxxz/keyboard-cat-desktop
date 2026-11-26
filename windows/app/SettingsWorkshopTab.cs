@@ -67,7 +67,7 @@ internal sealed partial class SettingsWindow
     {
         editingSkin = CatSkinData.FromPreset("bluewhite");
 
-        DockPanel root = new DockPanel { LastChildFill = true, Height = 496 };
+        DockPanel root = new DockPanel { LastChildFill = true, VerticalAlignment = VerticalAlignment.Stretch };
 
         // 1. Top bar: saved skins strip + quick actions (New / Import / Export / Delete)
         DockPanel topRow = new DockPanel { LastChildFill = true };
@@ -95,9 +95,9 @@ internal sealed partial class SettingsWindow
         DockPanel.SetDock(topCard, Dock.Top);
         root.Children.Add(topCard);
 
-        // 2. Main split: Left live preview + name + templates + Save CTA | Right scrollable editor
-        Grid main = new Grid();
-        main.ColumnDefinitions.Add(new ColumnDefinition { Width = new GridLength(178) });
+        // 2. Main split: Left live preview + name + templates + Reset/Save CTA | Right scrollable editor
+        Grid main = new Grid { Height = 492, VerticalAlignment = VerticalAlignment.Top };
+        main.ColumnDefinitions.Add(new ColumnDefinition { Width = new GridLength(194) });
         main.ColumnDefinitions.Add(new ColumnDefinition { Width = new GridLength(10) });
         main.ColumnDefinitions.Add(new ColumnDefinition { Width = new GridLength(1, GridUnitType.Star) });
 
@@ -113,6 +113,57 @@ internal sealed partial class SettingsWindow
         return root;
     }
 
+    private Border MakeWeightedPoseBar()
+    {
+        string[] titles = { "正常", "开心", "不耐烦", "闭眼" };
+        double[] weights = { 1.0, 1.0, 1.42, 1.0 };
+        Grid grid = new Grid();
+        for (int i = 0; i < titles.Length; ++i)
+        {
+            grid.ColumnDefinitions.Add(new ColumnDefinition { Width = new GridLength(weights[i], GridUnitType.Star) });
+            int val = i;
+            TextBlock tb = new TextBlock
+            {
+                Text = titles[i],
+                FontSize = 10.5,
+                FontWeight = FontWeights.SemiBold,
+                Foreground = BrushOf(0x6F5F4E),
+                HorizontalAlignment = HorizontalAlignment.Center,
+                VerticalAlignment = VerticalAlignment.Center
+            };
+            Border b = new Border
+            {
+                CornerRadius = new CornerRadius(7),
+                Padding = new Thickness(3, 4.5, 3, 4.5),
+                Margin = new Thickness(1.5),
+                BorderThickness = new Thickness(1),
+                BorderBrush = Brushes.Transparent,
+                Background = Brushes.Transparent,
+                Cursor = Cursors.Hand,
+                Child = tb
+            };
+            b.MouseLeftButtonUp += delegate
+            {
+                workshopPose = val;
+                UpdateSegmentGroup(poseButtons, workshopPose);
+                RefreshWorkshopPreview();
+            };
+            Grid.SetColumn(b, i);
+            poseButtons.Add(new SegmentButton { Root = b, Label = tb, Value = val });
+            grid.Children.Add(b);
+        }
+        return new Border
+        {
+            Background = SidebarBg,
+            BorderBrush = BrushOf(0xE5DCC9),
+            BorderThickness = new Thickness(1),
+            CornerRadius = new CornerRadius(10),
+            Padding = new Thickness(2),
+            Margin = new Thickness(0, 7, 0, 0),
+            Child = grid
+        };
+    }
+
     private UIElement BuildWorkshopLeftColumn()
     {
         DockPanel left = new DockPanel { LastChildFill = false };
@@ -121,7 +172,7 @@ internal sealed partial class SettingsWindow
         StackPanel stageStack = new StackPanel();
         workshopPreviewHost = new Border
         {
-            Height = 158,
+            Height = 160,
             CornerRadius = new CornerRadius(10),
             Background = Gradient(0xFFFDF8, 0xF4EBD7, 0, 0, 0, 1),
             BorderBrush = BrushOf(0xE8DFCD),
@@ -129,24 +180,7 @@ internal sealed partial class SettingsWindow
             Padding = new Thickness(4)
         };
         stageStack.Children.Add(workshopPreviewHost);
-
-        Border poseBar = MakeSegmentBar(
-            poseButtons,
-            new[] { "正常", "开心", "不耐烦", "闭眼" },
-            new object[] { 0, 1, 2, 3 },
-            delegate(object v)
-            {
-                workshopPose = (int)v;
-                UpdateSegmentGroup(poseButtons, workshopPose);
-                RefreshWorkshopPreview();
-            });
-        poseBar.Margin = new Thickness(0, 7, 0, 0);
-        for (int i = 0; i < poseButtons.Count; ++i)
-        {
-            poseButtons[i].Label.FontSize = 10.5;
-            poseButtons[i].Root.Padding = new Thickness(2, 4, 2, 4);
-        }
-        stageStack.Children.Add(poseBar);
+        stageStack.Children.Add(MakeWeightedPoseBar());
 
         Border stageCard = MakeSectionCard(stageStack, new Thickness(8, 8, 8, 8));
         stageCard.Margin = new Thickness(0, 0, 0, 8);
@@ -188,7 +222,7 @@ internal sealed partial class SettingsWindow
             FontSize = 10.5,
             FontWeight = FontWeights.SemiBold,
             Foreground = TextSecondary,
-            Margin = new Thickness(0, 7, 0, 4)
+            Margin = new Thickness(0, 8, 0, 4)
         });
         WrapPanel tplWrap = new WrapPanel();
         var templates = new[]
@@ -213,8 +247,8 @@ internal sealed partial class SettingsWindow
             Border chip = new Border
             {
                 CornerRadius = new CornerRadius(6.5),
-                Padding = new Thickness(5.5, 2, 5.5, 2),
-                Margin = new Thickness(0, 0, 3.5, 3.5),
+                Padding = new Thickness(6, 2.5, 6, 2.5),
+                Margin = new Thickness(0, 0, 4, 4),
                 Background = ItemBg,
                 BorderBrush = ItemBorder,
                 BorderThickness = new Thickness(1),
@@ -222,7 +256,7 @@ internal sealed partial class SettingsWindow
                 Child = new TextBlock
                 {
                     Text = lbl,
-                    FontSize = 10,
+                    FontSize = 10.5,
                     FontWeight = FontWeights.SemiBold,
                     Foreground = BrushOf(0x5A4A3A)
                 }
@@ -241,13 +275,13 @@ internal sealed partial class SettingsWindow
         }
         meta.Children.Add(tplWrap);
 
-        Border metaCard = MakeSectionCard(meta, new Thickness(9, 7, 9, 5));
-        metaCard.Margin = new Thickness(0, 0, 0, 7);
+        Border metaCard = MakeSectionCard(meta, new Thickness(9, 8, 9, 6));
+        metaCard.Margin = new Thickness(0, 0, 0, 8);
         DockPanel.SetDock(metaCard, Dock.Top);
         left.Children.Add(metaCard);
 
-        // Save & Apply CTA anchored at bottom
-        StackPanel ctaWrap = new StackPanel();
+        // Reset + Save & Apply CTA row anchored cleanly at bottom with full bottom border visible
+        StackPanel ctaWrap = new StackPanel { Margin = new Thickness(0, 0, 0, 2) };
         workshopStatusText = new TextBlock
         {
             Text = "实时预览 · 点击下方应用",
@@ -255,32 +289,65 @@ internal sealed partial class SettingsWindow
             Foreground = BrushOf(0x8A5B14),
             HorizontalAlignment = HorizontalAlignment.Center,
             TextTrimming = TextTrimming.CharacterEllipsis,
-            Margin = new Thickness(0, 0, 0, 5)
+            Margin = new Thickness(0, 0, 0, 6)
         };
         ctaWrap.Children.Add(workshopStatusText);
+
+        Grid ctaGrid = new Grid();
+        ctaGrid.ColumnDefinitions.Add(new ColumnDefinition { Width = new GridLength(54) });
+        ctaGrid.ColumnDefinitions.Add(new ColumnDefinition { Width = new GridLength(6) });
+        ctaGrid.ColumnDefinitions.Add(new ColumnDefinition { Width = new GridLength(1, GridUnitType.Star) });
+
+        Border resetBtn = new Border
+        {
+            CornerRadius = new CornerRadius(10),
+            Padding = new Thickness(6, 8, 6, 8),
+            Background = BrushOf(0xFFFDF6),
+            BorderBrush = BrushOf(0xDDD3BF),
+            BorderThickness = new Thickness(1),
+            Cursor = Cursors.Hand,
+            ToolTip = "恢复到上次保存或默认配色",
+            Child = new TextBlock
+            {
+                Text = "重置",
+                FontSize = 11.5,
+                FontWeight = FontWeights.SemiBold,
+                Foreground = BrushOf(0x5C4D3E),
+                HorizontalAlignment = HorizontalAlignment.Center,
+                VerticalAlignment = VerticalAlignment.Center
+            }
+        };
+        resetBtn.MouseEnter += delegate { resetBtn.Background = BrushOf(0xFFF3D8); };
+        resetBtn.MouseLeave += delegate { resetBtn.Background = BrushOf(0xFFFDF6); };
+        resetBtn.MouseLeftButtonUp += delegate { ResetEditingSkin(); };
+        Grid.SetColumn(resetBtn, 0);
+        ctaGrid.Children.Add(resetBtn);
 
         Border applyBtn = new Border
         {
             CornerRadius = new CornerRadius(10),
-            Padding = new Thickness(10, 8, 10, 8),
+            Padding = new Thickness(8, 8, 8, 8),
             Background = Gradient(0xFFCC58, 0xF09E16, 0, 0, 0, 1),
             BorderBrush = BrushOf(0xDC8C10),
             BorderThickness = new Thickness(1),
             Cursor = Cursors.Hand,
             Child = new TextBlock
             {
-                Text = "保存并应用到桌面",
+                Text = "保存并应用",
                 FontSize = 12,
                 FontWeight = FontWeights.Bold,
                 Foreground = BrushOf(0x472905),
-                HorizontalAlignment = HorizontalAlignment.Center
+                HorizontalAlignment = HorizontalAlignment.Center,
+                VerticalAlignment = VerticalAlignment.Center
             }
         };
         applyBtn.MouseEnter += delegate { applyBtn.Background = Gradient(0xFFD674, 0xF5A824, 0, 0, 0, 1); };
         applyBtn.MouseLeave += delegate { applyBtn.Background = Gradient(0xFFCC58, 0xF09E16, 0, 0, 0, 1); };
         applyBtn.MouseLeftButtonUp += delegate { SaveAndApplyEditingSkin(); };
-        ctaWrap.Children.Add(applyBtn);
+        Grid.SetColumn(applyBtn, 2);
+        ctaGrid.Children.Add(applyBtn);
 
+        ctaWrap.Children.Add(ctaGrid);
         DockPanel.SetDock(ctaWrap, Dock.Bottom);
         left.Children.Add(ctaWrap);
 
@@ -293,7 +360,7 @@ internal sealed partial class SettingsWindow
 
         // Section 1: Body base & markings
         StackPanel shapeSec = new StackPanel();
-        shapeSec.Children.Add(MakeSectionHeader("底模与花纹", "英短 / 美短 / 布偶 / 折耳等自由混搭"));
+        shapeSec.Children.Add(MakeSectionHeader("底模与花纹", "英短 / 美短 / 布偶 / 折耳混搭"));
 
         shapeSec.Children.Add(MakeSubLabel("基础底模"));
         shapeSec.Children.Add(MakePillWrap(
@@ -649,17 +716,20 @@ internal sealed partial class SettingsWindow
         StackPanel hexPart = new StackPanel { Orientation = Orientation.Horizontal, VerticalAlignment = VerticalAlignment.Center };
         Border chip = new Border
         {
-            Width = 14,
-            Height = 14,
+            Width = 16,
+            Height = 16,
             CornerRadius = new CornerRadius(4),
             BorderBrush = BrushOf(0xC8BDA8),
             BorderThickness = new Thickness(1),
             Margin = new Thickness(0, 0, 5, 0),
+            Cursor = Cursors.Hand,
+            ToolTip = "点击打开色盘自由选色",
             VerticalAlignment = VerticalAlignment.Center
         };
+        Border paletteBtn = MakePaletteTriggerButton();
         TextBox hexBox = new TextBox
         {
-            Width = 66,
+            Width = 64,
             Height = 20,
             MaxLength = 7,
             FontSize = 10.5,
@@ -671,14 +741,18 @@ internal sealed partial class SettingsWindow
             BorderThickness = new Thickness(1),
             VerticalContentAlignment = VerticalAlignment.Center
         };
+        ColorPickerRow localPicker = picker;
+        chip.MouseLeftButtonUp += delegate { OpenColorWheelPopup(localPicker, paletteBtn); };
+        paletteBtn.MouseLeftButtonUp += delegate { OpenColorWheelPopup(localPicker, paletteBtn); };
+
         hexPart.Children.Add(chip);
+        hexPart.Children.Add(paletteBtn);
         hexPart.Children.Add(hexBox);
         DockPanel.SetDock(hexPart, Dock.Right);
         topLine.Children.Add(hexPart);
         wrap.Children.Add(topLine);
 
         StackPanel swatchRow = new StackPanel { Orientation = Orientation.Horizontal };
-        ColorPickerRow localPicker = picker;
         for (int i = 0; i < swatches.Length; ++i)
         {
             string hex = swatches[i];
@@ -734,6 +808,349 @@ internal sealed partial class SettingsWindow
         picker.HexBox = hexBox;
         colorPickers.Add(picker);
         return wrap;
+    }
+
+    // --- Interactive Cream HSV Color Palette Popup (SV Square + Rainbow Hue Bar) ---
+    private Popup colorWheelPopup;
+    private ColorPickerRow activeWheelPicker;
+    private double wheelH, wheelS = 0.6, wheelV = 0.8;
+    private SolidColorBrush wheelHueFill;
+    private Ellipse wheelSvThumb;
+    private Border wheelHueThumb;
+    private Border wheelPreviewBox;
+    private TextBlock wheelHexLabel;
+    private bool wheelDraggingSv, wheelDraggingHue;
+    private const double SvWidth = 196.0, SvHeight = 132.0, HueWidth = 196.0;
+
+    private Border MakePaletteTriggerButton()
+    {
+        LinearGradientBrush rainbow = new LinearGradientBrush
+        {
+            StartPoint = new Point(0, 0),
+            EndPoint = new Point(1, 1)
+        };
+        rainbow.GradientStops.Add(new GradientStop(Color.FromRgb(255, 102, 102), 0.0));
+        rainbow.GradientStops.Add(new GradientStop(Color.FromRgb(255, 206, 74), 0.35));
+        rainbow.GradientStops.Add(new GradientStop(Color.FromRgb(86, 204, 146), 0.68));
+        rainbow.GradientStops.Add(new GradientStop(Color.FromRgb(94, 158, 245), 1.0));
+        rainbow.Freeze();
+
+        StackPanel sp = new StackPanel { Orientation = Orientation.Horizontal, VerticalAlignment = VerticalAlignment.Center };
+        sp.Children.Add(new Ellipse
+        {
+            Width = 9,
+            Height = 9,
+            Fill = rainbow,
+            Stroke = BrushOf(0x9E8E78),
+            StrokeThickness = 0.7,
+            Margin = new Thickness(0, 0, 3.5, 0),
+            VerticalAlignment = VerticalAlignment.Center
+        });
+        sp.Children.Add(new TextBlock
+        {
+            Text = "色盘",
+            FontSize = 10,
+            FontWeight = FontWeights.SemiBold,
+            Foreground = BrushOf(0x5A4834),
+            VerticalAlignment = VerticalAlignment.Center
+        });
+        Border btn = new Border
+        {
+            CornerRadius = new CornerRadius(5),
+            Padding = new Thickness(5, 1.5, 5, 1.5),
+            Margin = new Thickness(0, 0, 5, 0),
+            Background = BrushOf(0xFAF4E4),
+            BorderBrush = BrushOf(0xDFD4BC),
+            BorderThickness = new Thickness(1),
+            Cursor = Cursors.Hand,
+            ToolTip = "打开完整色盘实时选色",
+            VerticalAlignment = VerticalAlignment.Center,
+            Child = sp
+        };
+        btn.MouseEnter += delegate { btn.Background = BrushOf(0xFFF0C6); };
+        btn.MouseLeave += delegate { btn.Background = BrushOf(0xFAF4E4); };
+        return btn;
+    }
+
+    private void EnsureColorWheelPopup()
+    {
+        if (colorWheelPopup != null) return;
+
+        wheelHueFill = new SolidColorBrush(Colors.Red);
+
+        // 1. 2D Saturation / Value square
+        Grid svGrid = new Grid { Width = SvWidth, Height = SvHeight, ClipToBounds = true, Cursor = Cursors.Cross };
+        svGrid.Children.Add(new Border { Background = wheelHueFill });
+        LinearGradientBrush whiteMask = new LinearGradientBrush(
+            Color.FromArgb(255, 255, 255, 255), Color.FromArgb(0, 255, 255, 255),
+            new Point(0, 0.5), new Point(1, 0.5));
+        whiteMask.Freeze();
+        svGrid.Children.Add(new Border { Background = whiteMask });
+        LinearGradientBrush blackMask = new LinearGradientBrush(
+            Color.FromArgb(0, 0, 0, 0), Color.FromArgb(255, 0, 0, 0),
+            new Point(0.5, 0), new Point(0.5, 1));
+        blackMask.Freeze();
+        svGrid.Children.Add(new Border { Background = blackMask });
+
+        Canvas svOverlay = new Canvas { Width = SvWidth, Height = SvHeight, IsHitTestVisible = false };
+        wheelSvThumb = new Ellipse
+        {
+            Width = 12,
+            Height = 12,
+            Stroke = Brushes.White,
+            StrokeThickness = 2,
+            Fill = Brushes.Transparent
+        };
+        svOverlay.Children.Add(wheelSvThumb);
+        svGrid.Children.Add(svOverlay);
+
+        svGrid.MouseLeftButtonDown += delegate(object s, MouseButtonEventArgs e)
+        {
+            wheelDraggingSv = true;
+            svGrid.CaptureMouse();
+            UpdateSvFromPoint(e.GetPosition(svGrid));
+            e.Handled = true;
+        };
+        svGrid.MouseMove += delegate(object s, MouseEventArgs e)
+        {
+            if (wheelDraggingSv)
+            {
+                UpdateSvFromPoint(e.GetPosition(svGrid));
+                e.Handled = true;
+            }
+        };
+        svGrid.MouseLeftButtonUp += delegate(object s, MouseButtonEventArgs e)
+        {
+            wheelDraggingSv = false;
+            if (svGrid.IsMouseCaptured) svGrid.ReleaseMouseCapture();
+            e.Handled = true;
+        };
+        svGrid.LostMouseCapture += delegate { wheelDraggingSv = false; };
+
+        Border svFrame = new Border
+        {
+            CornerRadius = new CornerRadius(7),
+            BorderBrush = BrushOf(0xD8CCB6),
+            BorderThickness = new Thickness(1),
+            ClipToBounds = true,
+            Child = svGrid
+        };
+
+        // 2. Rainbow Hue bar
+        LinearGradientBrush spectrum = new LinearGradientBrush { StartPoint = new Point(0, 0.5), EndPoint = new Point(1, 0.5) };
+        spectrum.GradientStops.Add(new GradientStop(Color.FromRgb(255, 0, 0), 0.00));
+        spectrum.GradientStops.Add(new GradientStop(Color.FromRgb(255, 255, 0), 0.17));
+        spectrum.GradientStops.Add(new GradientStop(Color.FromRgb(0, 255, 0), 0.33));
+        spectrum.GradientStops.Add(new GradientStop(Color.FromRgb(0, 255, 255), 0.50));
+        spectrum.GradientStops.Add(new GradientStop(Color.FromRgb(0, 0, 255), 0.67));
+        spectrum.GradientStops.Add(new GradientStop(Color.FromRgb(255, 0, 255), 0.83));
+        spectrum.GradientStops.Add(new GradientStop(Color.FromRgb(255, 0, 0), 1.00));
+        spectrum.Freeze();
+
+        Grid hueGrid = new Grid { Width = HueWidth, Height = 16, Background = spectrum, Cursor = Cursors.Hand };
+        Canvas hueOverlay = new Canvas { Width = HueWidth, Height = 16, IsHitTestVisible = false };
+        wheelHueThumb = new Border
+        {
+            Width = 7,
+            Height = 16,
+            CornerRadius = new CornerRadius(3),
+            Background = Brushes.White,
+            BorderBrush = BrushOf(0x5A4834),
+            BorderThickness = new Thickness(1)
+        };
+        hueOverlay.Children.Add(wheelHueThumb);
+        hueGrid.Children.Add(hueOverlay);
+
+        hueGrid.MouseLeftButtonDown += delegate(object s, MouseButtonEventArgs e)
+        {
+            wheelDraggingHue = true;
+            hueGrid.CaptureMouse();
+            UpdateHueFromPoint(e.GetPosition(hueGrid));
+            e.Handled = true;
+        };
+        hueGrid.MouseMove += delegate(object s, MouseEventArgs e)
+        {
+            if (wheelDraggingHue)
+            {
+                UpdateHueFromPoint(e.GetPosition(hueGrid));
+                e.Handled = true;
+            }
+        };
+        hueGrid.MouseLeftButtonUp += delegate(object s, MouseButtonEventArgs e)
+        {
+            wheelDraggingHue = false;
+            if (hueGrid.IsMouseCaptured) hueGrid.ReleaseMouseCapture();
+            e.Handled = true;
+        };
+        hueGrid.LostMouseCapture += delegate { wheelDraggingHue = false; };
+
+        Border hueFrame = new Border
+        {
+            CornerRadius = new CornerRadius(6),
+            BorderBrush = BrushOf(0xD8CCB6),
+            BorderThickness = new Thickness(1),
+            Margin = new Thickness(0, 8, 0, 8),
+            ClipToBounds = true,
+            Child = hueGrid
+        };
+
+        // 3. Footer: preview swatch + hex + Done button
+        DockPanel footer = new DockPanel { LastChildFill = false };
+        StackPanel leftInfo = new StackPanel { Orientation = Orientation.Horizontal, VerticalAlignment = VerticalAlignment.Center };
+        wheelPreviewBox = new Border
+        {
+            Width = 24,
+            Height = 20,
+            CornerRadius = new CornerRadius(5),
+            BorderBrush = BrushOf(0xC6B9A2),
+            BorderThickness = new Thickness(1),
+            Margin = new Thickness(0, 0, 6, 0)
+        };
+        wheelHexLabel = new TextBlock
+        {
+            Text = "#FFFFFF",
+            FontSize = 11,
+            FontWeight = FontWeights.SemiBold,
+            FontFamily = new FontFamily("Consolas, Segoe UI"),
+            Foreground = TextPrimary,
+            VerticalAlignment = VerticalAlignment.Center
+        };
+        leftInfo.Children.Add(wheelPreviewBox);
+        leftInfo.Children.Add(wheelHexLabel);
+        DockPanel.SetDock(leftInfo, Dock.Left);
+        footer.Children.Add(leftInfo);
+
+        Border okBtn = new Border
+        {
+            CornerRadius = new CornerRadius(7),
+            Padding = new Thickness(10, 4, 10, 4),
+            Background = Gradient(0xFFCC58, 0xF09E16, 0, 0, 0, 1),
+            BorderBrush = BrushOf(0xDC8C10),
+            BorderThickness = new Thickness(1),
+            Cursor = Cursors.Hand,
+            Child = new TextBlock
+            {
+                Text = "确定",
+                FontSize = 11,
+                FontWeight = FontWeights.Bold,
+                Foreground = BrushOf(0x472905)
+            }
+        };
+        okBtn.MouseEnter += delegate { okBtn.Background = Gradient(0xFFD674, 0xF5A824, 0, 0, 0, 1); };
+        okBtn.MouseLeave += delegate { okBtn.Background = Gradient(0xFFCC58, 0xF09E16, 0, 0, 0, 1); };
+        okBtn.MouseLeftButtonUp += delegate { colorWheelPopup.IsOpen = false; };
+        DockPanel.SetDock(okBtn, Dock.Right);
+        footer.Children.Add(okBtn);
+
+        StackPanel body = new StackPanel();
+        body.Children.Add(svFrame);
+        body.Children.Add(hueFrame);
+        body.Children.Add(footer);
+
+        Border card = new Border
+        {
+            Background = CardBg,
+            BorderBrush = BrushOf(0xD8CCB6),
+            BorderThickness = new Thickness(1.2),
+            CornerRadius = new CornerRadius(12),
+            Padding = new Thickness(10),
+            Child = body
+        };
+
+        colorWheelPopup = new Popup
+        {
+            AllowsTransparency = true,
+            StaysOpen = false,
+            Placement = PlacementMode.Bottom,
+            VerticalOffset = 4,
+            Child = card
+        };
+        colorWheelPopup.Closed += delegate
+        {
+            wheelDraggingSv = false;
+            wheelDraggingHue = false;
+        };
+    }
+
+    private void OpenColorWheelPopup(ColorPickerRow picker, UIElement anchor)
+    {
+        EnsureColorWheelPopup();
+        activeWheelPicker = picker;
+        Color current = CatSkinData.ParseHex(picker.Getter(), Colors.Gray);
+        RgbToHsv(current, out wheelH, out wheelS, out wheelV);
+        RefreshColorWheelVisuals(false);
+        colorWheelPopup.PlacementTarget = anchor;
+        colorWheelPopup.IsOpen = true;
+    }
+
+    private void UpdateSvFromPoint(Point pt)
+    {
+        wheelS = Math.Max(0.0, Math.Min(1.0, pt.X / SvWidth));
+        wheelV = Math.Max(0.0, Math.Min(1.0, 1.0 - pt.Y / SvHeight));
+        RefreshColorWheelVisuals(true);
+    }
+
+    private void UpdateHueFromPoint(Point pt)
+    {
+        wheelH = Math.Max(0.0, Math.Min(359.5, (pt.X / HueWidth) * 360.0));
+        RefreshColorWheelVisuals(true);
+    }
+
+    private void RefreshColorWheelVisuals(bool applyToModel)
+    {
+        wheelHueFill.Color = HsvToRgb(wheelH, 1.0, 1.0);
+        Canvas.SetLeft(wheelSvThumb, wheelS * SvWidth - 6.0);
+        Canvas.SetTop(wheelSvThumb, (1.0 - wheelV) * SvHeight - 6.0);
+        wheelSvThumb.Stroke = wheelV > 0.72 && wheelS < 0.35 ? BrushOf(0x423529) : Brushes.White;
+        Canvas.SetLeft(wheelHueThumb, Math.Max(0, Math.Min(HueWidth - 7.0, (wheelH / 360.0) * HueWidth - 3.5)));
+
+        Color picked = HsvToRgb(wheelH, wheelS, wheelV);
+        string hex = string.Format(System.Globalization.CultureInfo.InvariantCulture, "#{0:X2}{1:X2}{2:X2}", picked.R, picked.G, picked.B);
+        SolidColorBrush previewBrush = new SolidColorBrush(picked);
+        previewBrush.Freeze();
+        wheelPreviewBox.Background = previewBrush;
+        wheelHexLabel.Text = hex;
+
+        if (applyToModel && activeWheelPicker != null)
+        {
+            activeWheelPicker.Setter(hex);
+            UpdateColorPickerVisual(activeWheelPicker, hex);
+            RefreshWorkshopPreview();
+        }
+    }
+
+    private static void RgbToHsv(Color c, out double h, out double s, out double v)
+    {
+        double r = c.R / 255.0, g = c.G / 255.0, b = c.B / 255.0;
+        double max = Math.Max(r, Math.Max(g, b));
+        double min = Math.Min(r, Math.Min(g, b));
+        double delta = max - min;
+        v = max;
+        s = max <= 0.0001 ? 0.0 : delta / max;
+        if (delta <= 0.0001) h = 0.0;
+        else if (max == r) h = 60.0 * (((g - b) / delta) % 6.0);
+        else if (max == g) h = 60.0 * (((b - r) / delta) + 2.0);
+        else h = 60.0 * (((r - g) / delta) + 4.0);
+        if (h < 0.0) h += 360.0;
+    }
+
+    private static Color HsvToRgb(double h, double s, double v)
+    {
+        h = ((h % 360.0) + 360.0) % 360.0;
+        double c = v * s;
+        double x = c * (1.0 - Math.Abs((h / 60.0) % 2.0 - 1.0));
+        double m = v - c;
+        double r = 0, g = 0, b = 0;
+        if (h < 60) { r = c; g = x; }
+        else if (h < 120) { r = x; g = c; }
+        else if (h < 180) { g = c; b = x; }
+        else if (h < 240) { g = x; b = c; }
+        else if (h < 300) { r = x; b = c; }
+        else { r = c; b = x; }
+        return Color.FromRgb(
+            (byte)Math.Max(0, Math.Min(255, (int)Math.Round((r + m) * 255.0))),
+            (byte)Math.Max(0, Math.Min(255, (int)Math.Round((g + m) * 255.0))),
+            (byte)Math.Max(0, Math.Min(255, (int)Math.Round((b + m) * 255.0))));
     }
 
     private void UpdateColorPickerVisual(ColorPickerRow picker, string hex)
@@ -1046,13 +1463,43 @@ internal sealed partial class SettingsWindow
 
     private void CreateNewSkinDraft()
     {
-        editingSkin = new CatSkinData
-        {
-            Id = CatSkinData.NewId(),
-            Name = "我的小猫 " + (savedSkins.Count + 1)
-        };
+        editingSkin = CatSkinData.FromPreset("bluewhite");
+        editingSkin.Id = CatSkinData.NewId();
+        editingSkin.Name = "我的小猫 " + (savedSkins.Count + 1);
         SyncWorkshopControlsFromModel();
         SetWorkshopStatus("已新建皮肤草稿，完成后点击应用");
+    }
+
+    private void ResetEditingSkin()
+    {
+        if (editingSkin == null)
+        {
+            CreateNewSkinDraft();
+            return;
+        }
+        string keepId = editingSkin.Id;
+        CatSkinData saved = null;
+        for (int i = 0; i < savedSkins.Count; ++i)
+        {
+            if (string.Equals(savedSkins[i].Id, keepId, StringComparison.OrdinalIgnoreCase))
+            {
+                saved = savedSkins[i];
+                break;
+            }
+        }
+        if (saved != null)
+        {
+            editingSkin = saved.Clone();
+            SyncWorkshopControlsFromModel();
+            SetWorkshopStatus("已恢复「" + saved.Name + "」上次保存状态");
+        }
+        else
+        {
+            editingSkin = CatSkinData.FromPreset("bluewhite");
+            editingSkin.Id = keepId;
+            SyncWorkshopControlsFromModel();
+            SetWorkshopStatus("已重置为默认配色");
+        }
     }
 
     private void SaveAndApplyEditingSkin()
