@@ -17,6 +17,11 @@ public struct CatMood
     public double PetNuzzleY;
     public double ScruffLift;
     public double DragSwing;
+    public double Groom;
+    public double GroomLick;
+    public double GroomSide;
+    public double EarTwitchL;
+    public double EarTwitchR;
 }
 
 public static partial class CatArt
@@ -574,6 +579,122 @@ public static partial class CatArt
         }
         dc.DrawGeometry(null, DangleArcPen, l1);
         dc.DrawGeometry(null, DangleArcPen, r1);
+        dc.Pop();
+    }
+
+    // --- Idle grooming tongue & snappy ear-twitch animations ---
+    private static readonly Brush TongueFill = Wash(new byte[] { 248, 152, 166 }, new byte[] { 226, 108, 128 }, new Point(.5, 0), new Point(.5, 1));
+    private static readonly Pen TongueEdge = Stroke(Ink(168, 74, 88), 1.0);
+    private static readonly Pen TongueGroove = Stroke(AlphaBrush(130, 178, 76, 92), 0.85);
+    private static readonly Brush TongueGlint = AlphaBrush(160, 255, 232, 236);
+    private static readonly Pen EarTwitchPen = Stroke(AlphaBrush(195, 236, 166, 52), 1.55);
+
+    private static readonly Geometry LeftEarClip = Shape("M -62,-74 L -10,-74 L -10,-32 Q -28,-22 -48,-16 L -62,-16 Z");
+    private static readonly Geometry RightEarClip = Shape("M 10,-74 L 62,-74 L 62,-16 L 48,-16 Q 28,-22 10,-32 Z");
+    private static readonly Geometry SkullMinusLeftClip = Shape(
+        "F0 M -96,-96 L 96,-96 L 96,96 L -96,96 Z M -62,-74 L -14,-74 L -16,-44 Q -31,-41 -44,-26 L -62,-26 Z");
+    private static readonly Geometry SkullMinusRightClip = Shape(
+        "F0 M -96,-96 L 96,-96 L 96,96 L -96,96 Z M 14,-74 L 62,-74 L 62,-26 L 44,-26 Q 31,-41 16,-44 Z");
+    private static readonly Geometry SkullMinusBothClip = Shape(
+        "F0 M -96,-96 L 96,-96 L 96,96 L -96,96 Z " +
+        "M -62,-74 L -14,-74 L -16,-44 Q -31,-41 -44,-26 L -62,-26 Z " +
+        "M 14,-74 L 62,-74 L 62,-26 L 44,-26 Q 31,-41 16,-44 Z");
+
+    // Draws head layers with zero-allocation EvenOdd ear hinge clipping so upright ears physically flick seamlessly.
+    internal static void DrawHeadWithEarTwitch(DrawingContext dc, double twitchL, double twitchR, Action drawHead)
+    {
+        bool tl = twitchL > 0.015;
+        bool tr = twitchR > 0.015;
+        if (!tl && !tr)
+        {
+            drawHead();
+            return;
+        }
+        if (tl)
+        {
+            double k = Limit(twitchL, 0, 1);
+            dc.PushTransform(new TranslateTransform(2.0 * k, 3.2 * k));
+            dc.PushTransform(new RotateTransform(-19.0 * k, -34.0, -34.0));
+            dc.PushTransform(new ScaleTransform(1.0 + 0.04 * k, 1.0 - 0.14 * k, -34.0, -34.0));
+            dc.PushClip(LeftEarClip);
+            drawHead();
+            dc.Pop();
+            dc.Pop();
+            dc.Pop();
+            dc.Pop();
+        }
+        if (tr)
+        {
+            double k = Limit(twitchR, 0, 1);
+            dc.PushTransform(new TranslateTransform(-2.0 * k, 3.2 * k));
+            dc.PushTransform(new RotateTransform(19.0 * k, 34.0, -34.0));
+            dc.PushTransform(new ScaleTransform(1.0 + 0.04 * k, 1.0 - 0.14 * k, 34.0, -34.0));
+            dc.PushClip(RightEarClip);
+            drawHead();
+            dc.Pop();
+            dc.Pop();
+            dc.Pop();
+            dc.Pop();
+        }
+        Geometry bodyClip = (tl && tr) ? SkullMinusBothClip : (tl ? SkullMinusLeftClip : SkullMinusRightClip);
+        dc.PushClip(bodyClip);
+        drawHead();
+        dc.Pop();
+    }
+
+    // Crisp cartoon flick lines radiating outside a twitching ear tip.
+    internal static void DrawEarTwitchMark(DrawingContext dc, double side, double intensity)
+    {
+        double k = Limit(intensity, 0, 1);
+        if (k <= 0.08) return;
+        double s = side < 0 ? -1.0 : 1.0;
+        dc.PushOpacity(k * 0.92);
+        StreamGeometry g1 = new StreamGeometry();
+        using (StreamGeometryContext g = g1.Open())
+        {
+            g.BeginFigure(new Point(s * (46.0 + 2.0 * k), -60.0), false, false);
+            g.QuadraticBezierTo(new Point(s * (53.0 + 3.0 * k), -53.0), new Point(s * (50.0 + 2.5 * k), -44.0), true, false);
+        }
+        StreamGeometry g2 = new StreamGeometry();
+        using (StreamGeometryContext g = g2.Open())
+        {
+            g.BeginFigure(new Point(s * (51.0 + 3.0 * k), -58.0), false, false);
+            g.QuadraticBezierTo(new Point(s * (57.5 + 3.5 * k), -52.0), new Point(s * (55.0 + 3.0 * k), -45.5), true, false);
+        }
+        dc.DrawGeometry(null, EarTwitchPen, g1);
+        dc.DrawGeometry(null, EarTwitchPen, g2);
+        dc.Pop();
+    }
+
+    // Adorable pink cat tongue peeking out in head-local space while licking a raised paw.
+    internal static void DrawGroomTongue(DrawingContext dc, double side, double lick, double groom)
+    {
+        double k = Limit(lick, 0, 1) * Limit(groom, 0, 1);
+        if (k <= 0.04) return;
+        double s = side < 0 ? -1.0 : 1.0;
+        double ext = 0.35 + 0.65 * k;
+        double len = 10.5 * ext;
+        double cx = s * (2.2 + 2.0 * k);
+        double topY = 12.2;
+        dc.PushOpacity(Limit(k * 1.4, 0, 1));
+        dc.PushTransform(new RotateTransform(-s * 12.0 * k, cx, topY));
+        StreamGeometry tongue = new StreamGeometry();
+        using (StreamGeometryContext g = tongue.Open())
+        {
+            g.BeginFigure(new Point(cx - 4.0, topY), true, true);
+            g.BezierTo(
+                new Point(cx - 4.4, topY + len * 0.72),
+                new Point(cx - 2.6, topY + len),
+                new Point(cx, topY + len + 0.8), true, true);
+            g.BezierTo(
+                new Point(cx + 2.6, topY + len),
+                new Point(cx + 4.4, topY + len * 0.72),
+                new Point(cx + 4.0, topY), true, true);
+        }
+        dc.DrawGeometry(TongueFill, TongueEdge, tongue);
+        dc.DrawLine(TongueGroove, new Point(cx, topY + 1.4), new Point(cx, topY + len * 0.68));
+        dc.DrawEllipse(TongueGlint, null, new Point(cx - 1.4, topY + len * 0.45), 1.1, 1.7 * ext);
+        dc.Pop();
         dc.Pop();
     }
 }

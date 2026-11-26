@@ -21,6 +21,7 @@ internal sealed partial class SettingsWindow
     private sealed class ColorPickerRow
     {
         public UIElement Container;
+        public TextBlock HintBlock;
         public List<Border> Swatches = new List<Border>();
         public List<string> SwatchHexes = new List<string>();
         public Border PreviewChip;
@@ -60,6 +61,9 @@ internal sealed partial class SettingsWindow
     private CreamToggle heteroToggle;
 
     private readonly List<ColorPickerRow> colorPickers = new List<ColorPickerRow>();
+    private ColorPickerRow accentPicker;
+    private ColorPickerRow bellyPicker;
+    private ColorPickerRow pawPicker;
     private ColorPickerRow rightEyePicker;
     private ColorPickerRow accColorPicker;
 
@@ -389,6 +393,7 @@ internal sealed partial class SettingsWindow
             {
                 editingSkin.FacePattern = (SkinFacePattern)v;
                 UpdatePillGroup(facePills, editingSkin.FacePattern);
+                UpdateDynamicPickerVisibility();
                 RefreshWorkshopPreview();
             }));
 
@@ -405,6 +410,7 @@ internal sealed partial class SettingsWindow
             {
                 editingSkin.BellyStyle = (SkinBellyStyle)v;
                 UpdatePillGroup(bellyPills, editingSkin.BellyStyle);
+                UpdateDynamicPickerVisibility();
                 RefreshWorkshopPreview();
             }));
 
@@ -421,6 +427,7 @@ internal sealed partial class SettingsWindow
             {
                 editingSkin.BodyPattern = (SkinBodyPattern)v;
                 UpdatePillGroup(bodyPatternPills, editingSkin.BodyPattern);
+                UpdateDynamicPickerVisibility();
                 RefreshWorkshopPreview();
             }));
 
@@ -437,6 +444,7 @@ internal sealed partial class SettingsWindow
             {
                 editingSkin.PawStyle = (SkinPawStyle)v;
                 UpdatePillGroup(pawPills, editingSkin.PawStyle);
+                UpdateDynamicPickerVisibility();
                 RefreshWorkshopPreview();
             }));
 
@@ -453,6 +461,7 @@ internal sealed partial class SettingsWindow
             {
                 editingSkin.TailStyle = (SkinTailStyle)v;
                 UpdatePillGroup(tailPills, editingSkin.TailStyle);
+                UpdateDynamicPickerVisibility();
                 RefreshWorkshopPreview();
             }));
 
@@ -460,36 +469,44 @@ internal sealed partial class SettingsWindow
         {
             if (workshopSyncing) return;
             editingSkin.DarkEarTips = on;
+            UpdateDynamicPickerVisibility();
             RefreshWorkshopPreview();
         });
-        DockPanel earTipRow = MakeCompactToggleRow("深色耳尖", darkEarTipsToggle);
+        DockPanel earTipRow = MakeCompactToggleRow("深色耳尖（跟随重点色）", darkEarTipsToggle);
         earTipRow.Margin = new Thickness(0, 6, 0, 0);
         shapeSec.Children.Add(earTipRow);
         editor.Children.Add(MakeSectionCard(shapeSec, new Thickness(11, 9, 11, 9)));
 
         // Section 2: Coat colors
         StackPanel coatSec = new StackPanel();
-        coatSec.Children.Add(MakeSectionHeader("毛色配色", "点击色板或输入 #RRGGBB"));
+        coatSec.Children.Add(MakeSectionHeader("毛色配色", "仅显示当前款式用到的配色"));
         coatSec.Children.Add(AddColorPicker(
             "主毛色",
             new[] { "#757F8C", "#CFD4DA", "#262428", "#F0A860", "#BD8952", "#F6F0E8", "#E6D5BE", "#E8DFD2" },
             delegate { return editingSkin.FurColor; },
-            delegate(string h) { editingSkin.FurColor = h; }));
+            delegate(string h) { editingSkin.FurColor = h; },
+            "作用：头部 / 身体 / 四肢 / 尾巴底色"));
         coatSec.Children.Add(AddColorPicker(
             "斑纹 / 重点色",
             new[] { "#3B4048", "#565F6C", "#6F5B50", "#4C3530", "#634328", "#C26F38", "#8E95A0", "#E59876" },
             delegate { return editingSkin.AccentColor; },
-            delegate(string h) { editingSkin.AccentColor = h; }));
+            delegate(string h) { editingSkin.AccentColor = h; },
+            out accentPicker,
+            ""));
         coatSec.Children.Add(AddColorPicker(
             "胸腹 / 面罩色",
             new[] { "#FFFDF8", "#FFF5E4", "#F2E4CE", "#FFE6C4", "#F4F6F9", "#F8D8B0", "#DFDFDF", "#2D2B30" },
             delegate { return editingSkin.BellyColor; },
-            delegate(string h) { editingSkin.BellyColor = h; }));
+            delegate(string h) { editingSkin.BellyColor = h; },
+            out bellyPicker,
+            ""));
         coatSec.Children.Add(AddColorPicker(
             "爪套色",
             new[] { "#FFFDF8", "#FFE8C8", "#F5F7FA", "#4E3732", "#B2B6BE", "#E8B884", "#29272C", "#F4C8C6" },
             delegate { return editingSkin.PawColor; },
-            delegate(string h) { editingSkin.PawColor = h; }));
+            delegate(string h) { editingSkin.PawColor = h; },
+            out pawPicker,
+            ""));
         coatSec.Children.Add(AddColorPicker(
             "内耳色",
             new[] { "#F0A89E", "#F5BDB6", "#ECC8A4", "#E29596", "#85605A", "#4A434A", "#D9A89C", "#F6D0C6" },
@@ -509,12 +526,13 @@ internal sealed partial class SettingsWindow
 
         // Section 3: Eyes & Heterochromia
         StackPanel eyeSec = new StackPanel();
-        eyeSec.Children.Add(MakeSectionHeader("眼睛定制", "支持异瞳与瞳孔形态"));
+        eyeSec.Children.Add(MakeSectionHeader("眼睛定制", "支持异瞳与三种瞳孔形态"));
         eyeSec.Children.Add(MakeSubLabel("瞳孔样式"));
-        eyeSec.Children.Add(MakeSegmentBar(
+        eyeSec.Children.Add(MakeWeightedSegmentBar(
             pupilSegs,
-            new[] { "修长椭圆", "圆润呆萌" },
-            new object[] { SkinPupilStyle.SleekOval, SkinPupilStyle.RoundCute },
+            new[] { "修长椭圆", "圆润呆萌", "无反光豆豆眼" },
+            new object[] { SkinPupilStyle.SleekOval, SkinPupilStyle.RoundCute, SkinPupilStyle.BeadMatte },
+            new[] { 1.0, 1.0, 1.38 },
             delegate(object v)
             {
                 editingSkin.PupilStyle = (SkinPupilStyle)v;
@@ -690,18 +708,61 @@ internal sealed partial class SettingsWindow
         }
     }
 
-    private UIElement AddColorPicker(string label, string[] swatches, Func<string> getter, Action<string> setter)
+    private Border MakeWeightedSegmentBar(List<SegmentButton> group, string[] labels, object[] values, double[] weights, Action<object> onPick)
     {
-        ColorPickerRow dummy;
-        return AddColorPicker(label, swatches, getter, setter, out dummy);
+        Grid grid = new Grid();
+        for (int i = 0; i < labels.Length; ++i)
+        {
+            grid.ColumnDefinitions.Add(new ColumnDefinition { Width = new GridLength(weights[i], GridUnitType.Star) });
+            object val = values[i];
+            TextBlock tb = new TextBlock
+            {
+                Text = labels[i],
+                FontSize = 11,
+                FontWeight = FontWeights.SemiBold,
+                Foreground = BrushOf(0x6F5F4E),
+                HorizontalAlignment = HorizontalAlignment.Center,
+                VerticalAlignment = VerticalAlignment.Center
+            };
+            Border b = new Border
+            {
+                CornerRadius = new CornerRadius(7),
+                Padding = new Thickness(4, 5, 4, 5),
+                Margin = new Thickness(1.5),
+                BorderThickness = new Thickness(1),
+                BorderBrush = Brushes.Transparent,
+                Background = Brushes.Transparent,
+                Cursor = Cursors.Hand,
+                Child = tb
+            };
+            b.MouseLeftButtonUp += delegate { onPick(val); };
+            Grid.SetColumn(b, i);
+            group.Add(new SegmentButton { Root = b, Label = tb, Value = val });
+            grid.Children.Add(b);
+        }
+        return new Border
+        {
+            Background = SidebarBg,
+            BorderBrush = BrushOf(0xE5DCC9),
+            BorderThickness = new Thickness(1),
+            CornerRadius = new CornerRadius(10),
+            Padding = new Thickness(2),
+            Child = grid
+        };
     }
 
-    private UIElement AddColorPicker(string label, string[] swatches, Func<string> getter, Action<string> setter, out ColorPickerRow picker)
+    private UIElement AddColorPicker(string label, string[] swatches, Func<string> getter, Action<string> setter, string hint = null)
+    {
+        ColorPickerRow dummy;
+        return AddColorPicker(label, swatches, getter, setter, out dummy, hint);
+    }
+
+    private UIElement AddColorPicker(string label, string[] swatches, Func<string> getter, Action<string> setter, out ColorPickerRow picker, string hint = null)
     {
         picker = new ColorPickerRow { Getter = getter, Setter = setter };
         StackPanel wrap = new StackPanel { Margin = new Thickness(0, 5, 0, 2) };
 
-        DockPanel topLine = new DockPanel { LastChildFill = false, Margin = new Thickness(0, 0, 0, 4) };
+        DockPanel topLine = new DockPanel { LastChildFill = false, Margin = new Thickness(0, 0, 0, hint != null ? 2 : 4) };
         TextBlock lbl = new TextBlock
         {
             Text = label,
@@ -751,6 +812,20 @@ internal sealed partial class SettingsWindow
         DockPanel.SetDock(hexPart, Dock.Right);
         topLine.Children.Add(hexPart);
         wrap.Children.Add(topLine);
+
+        if (hint != null)
+        {
+            TextBlock hintTb = new TextBlock
+            {
+                Text = hint,
+                FontSize = 9.5,
+                Foreground = BrushOf(0x9A8974),
+                Margin = new Thickness(0, 0, 0, 4),
+                TextTrimming = TextTrimming.CharacterEllipsis
+            };
+            picker.HintBlock = hintTb;
+            wrap.Children.Add(hintTb);
+        }
 
         StackPanel swatchRow = new StackPanel { Orientation = Orientation.Horizontal };
         for (int i = 0; i < swatches.Length; ++i)
@@ -1184,6 +1259,28 @@ internal sealed partial class SettingsWindow
 
     private void UpdateDynamicPickerVisibility()
     {
+        if (editingSkin == null) return;
+        if (accentPicker != null && accentPicker.Container != null)
+        {
+            bool on = editingSkin.UsesAccentColor();
+            accentPicker.Container.Visibility = on ? Visibility.Visible : Visibility.Collapsed;
+            if (on && accentPicker.HintBlock != null)
+                accentPicker.HintBlock.Text = "当前作用：" + editingSkin.AccentUsageHint();
+        }
+        if (bellyPicker != null && bellyPicker.Container != null)
+        {
+            bool on = editingSkin.UsesBellyColor();
+            bellyPicker.Container.Visibility = on ? Visibility.Visible : Visibility.Collapsed;
+            if (on && bellyPicker.HintBlock != null)
+                bellyPicker.HintBlock.Text = "当前作用：" + editingSkin.BellyUsageHint();
+        }
+        if (pawPicker != null && pawPicker.Container != null)
+        {
+            bool on = editingSkin.UsesPawColor();
+            pawPicker.Container.Visibility = on ? Visibility.Visible : Visibility.Collapsed;
+            if (on && pawPicker.HintBlock != null)
+                pawPicker.HintBlock.Text = "当前作用：" + editingSkin.PawUsageHint();
+        }
         if (rightEyePicker != null && rightEyePicker.Container != null)
         {
             rightEyePicker.Container.Visibility = editingSkin.Heterochromia ? Visibility.Visible : Visibility.Collapsed;

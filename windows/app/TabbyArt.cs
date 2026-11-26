@@ -469,12 +469,19 @@ internal static class TabbyArt
         // Same layering as the base cat: a caller-supplied layer (the
         // gamepad or hugged keyboard & mouse) goes between the torso and the forelegs.
         if (between != null) between(dc);
+        double groom = CatArt.Limit(mood.Groom, 0, 1) * (1 - sleep) * (1 - lift);
+        double groomSide = mood.GroomSide < 0 ? -1.0 : 1.0;
+        double groomLick = CatArt.Limit(mood.GroomLick, 0, 1) * groom;
+        bool groomLeftFront = groom > 0.08 && groomSide < 0;
+        bool groomRightFront = groom > 0.08 && groomSide > 0;
         double rSy = BodyTop + bodyYShift + 17.0 * syScale;
         double lSy = BodyTop + bodyYShift + (17.0 - 5.0 * lean) * syScale;
         double rShear = (rSy - 233.0) * 0.285 * lean;
         double lShear = (lSy - 233.0) * 0.285 * lean;
-        DrawArm(dc,new Point(214+22*BodyWidth*sxScale+rShear, rSy),rightPaw,1,rightActivity,pawRaised);
-        DrawArm(dc,new Point(214-(22*BodyWidth*sxScale+2.5*lean)+lShear, lSy),leftPaw,-1,leftActivity,pawRaised);
+        Point rShoulder = new Point(214+22*BodyWidth*sxScale+rShear, rSy);
+        Point lShoulder = new Point(214-(22*BodyWidth*sxScale+2.5*lean)+lShear, lSy);
+        if (!groomRightFront) DrawArm(dc,rShoulder,rightPaw,1,rightActivity,pawRaised);
+        if (!groomLeftFront) DrawArm(dc,lShoulder,leftPaw,-1,leftActivity,pawRaised);
 
         // This front ruff overlaps the upper arm stripes, and tucks slightly inward during sleep.
         PushBodyPose(dc,lean - 0.42 * lift,sxScale * (1.0 - 0.22 * sleep),syScale,bodyYShift);
@@ -483,23 +490,32 @@ internal static class TabbyArt
         dc.Pop();
         dc.Pop();
 
+        double twitchL = CatArt.Limit(mood.EarTwitchL, 0, 1) * (1 - sleep) * (1 - lift);
+        double twitchR = CatArt.Limit(mood.EarTwitchR, 0, 1) * (1 - sleep) * (1 - lift);
         double breathFreq = sleep > 0.5 ? 1.15 : 1.7;
         double breathAmp = sleep > 0.5 ? 1.6 : 0.6;
         double nuzzleX = mood.PetNuzzleX * 4.5 * happy;
         double nuzzleY = mood.PetNuzzleY * 2.5 * happy - 1.5 * happy + 2.2 * impatient;
         double shakeX = impatient > 0.02 ? Math.Sin(time * 26.0) * 1.9 * impatient : 0;
-        double hx = 214 - 33.5*lean + 2.5*gazeX*(1 - sleep) - 2.0*sleep + nuzzleX + shakeX - 9.5*lift;
-        double hyNorm = BodyTop - 2 + 2*gazeY + Math.Sin(time*breathFreq)*breathAmp + 12.0*crouch + nuzzleY + 4.5*lift;
+        double hx = 214 - 33.5*lean + 2.5*gazeX*(1 - sleep) - 2.0*sleep + nuzzleX + shakeX - 9.5*lift + groomSide * 4.2 * groom;
+        double hyNorm = BodyTop - 2 + 2*gazeY + Math.Sin(time*breathFreq)*breathAmp + 12.0*crouch + nuzzleY + 4.5*lift
+            + (6.5 + 3.2 * groomLick) * groom - Math.Max(twitchL, twitchR) * 1.6;
         double hy = hyNorm + (186 + Math.Sin(time*1.15)*1.8 - hyNorm)*sleep;
-        double rot = (-2.25 + 2.8*gazeX - 2.4*lean + mood.PetNuzzleX * 6.5 * happy + Math.Sin(time * 5.2) * 2.6 * happy + Math.Sin(time * 22.0) * 2.8 * impatient)*(1 - sleep)*(1 - lift)
+        double rot = (-2.25 + 2.8*gazeX - 2.4*lean + mood.PetNuzzleX * 6.5 * happy + Math.Sin(time * 5.2) * 2.6 * happy + Math.Sin(time * 22.0) * 2.8 * impatient
+            + groomSide * (8.5 + 3.5 * groomLick) * groom + (twitchR - twitchL) * 3.8)*(1 - sleep)*(1 - lift)
             - 8.5*sleep - 10.5*lift - mood.DragSwing * 0.15 * lift;
         double browAnger = Math.Max(mood.Anger, impatient * 0.92) * (1 - lift);
         double eyeBoost = Math.Max(crouch, lift * 0.55);
         dc.PushTransform(new TranslateTransform(hx, hy));
         dc.PushTransform(new RotateTransform(rot));
         dc.PushTransform(new ScaleTransform(1.055, 1.0));
-        DrawHead(dc,gazeX,gazeY,blink,browAnger,angerBreath,eyeBoost,happy);
-        double blushAmt = Math.Max(happy, lift * 0.38);
+        CatArt.DrawHeadWithEarTwitch(dc, twitchL, twitchR, delegate
+        {
+            DrawHead(dc,gazeX,gazeY,blink,browAnger,angerBreath,eyeBoost,happy);
+        });
+        if (twitchL > .08) CatArt.DrawEarTwitchMark(dc, -1, twitchL);
+        if (twitchR > .08) CatArt.DrawEarTwitchMark(dc, 1, twitchR);
+        double blushAmt = Math.Max(happy, Math.Max(lift * 0.38, groom * 0.45));
         if (blushAmt > .05) CatArt.DrawBlush(dc, blushAmt);
         if (mood.Sweat > .01) CatArt.DrawSweat(dc, time, mood.Sweat);
         if (mood.Anger > .01 && lift < .5) CatArt.DrawAnger(dc, time, mood.Anger);
@@ -507,5 +523,18 @@ internal static class TabbyArt
         dc.Pop();
         dc.Pop();
         dc.Pop();
+
+        if (groomRightFront) DrawArm(dc,rShoulder,rightPaw,1,rightActivity,pawRaised);
+        if (groomLeftFront) DrawArm(dc,lShoulder,leftPaw,-1,leftActivity,pawRaised);
+        if (groomLick > .04)
+        {
+            dc.PushTransform(new TranslateTransform(hx, hy));
+            dc.PushTransform(new RotateTransform(rot));
+            dc.PushTransform(new ScaleTransform(1.055, 1.0));
+            CatArt.DrawGroomTongue(dc, groomSide, groomLick, groom);
+            dc.Pop();
+            dc.Pop();
+            dc.Pop();
+        }
     }
 }

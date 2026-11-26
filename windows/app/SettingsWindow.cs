@@ -1099,7 +1099,7 @@ internal sealed partial class SettingsWindow : Window
 
         // Idle time
         StackPanel idleSec = new StackPanel();
-        idleSec.Children.Add(MakeSectionHeader("闲置互动时间", "无操作超时后随机趴睡或抓虫子"));
+        idleSec.Children.Add(MakeSectionHeader("闲置互动时间", "无操作超时后随机趴睡、捉虫、舔毛或抖耳朵"));
         idleSec.Children.Add(MakeSegmentBar(
             idleSegs,
             new[] { "1 分钟", "3 分钟", "5 分钟", "10 分钟", "关闭" },

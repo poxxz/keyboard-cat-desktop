@@ -19,7 +19,7 @@ internal sealed class CatScene : FrameworkElement
         public double X, Y, Vx, Vy, Born, Life, Scale, Rot, Phase;
     }
 
-    private enum IdleAction { None, Sleep, HuntBug }
+    private enum IdleAction { None, Sleep, HuntBug, Groom, EarTwitch }
 
     private static readonly Point IdleLeft = new Point(192, 233);
     private static readonly Point IdleRight = new Point(229, 233);
@@ -42,6 +42,8 @@ internal sealed class CatScene : FrameworkElement
     private double gazeX, gazeY, blink, leftActivity, rightActivity;
     private double fastDuration, fastCoolDelay, sweatBlend, angerBlend;
     private double passwordBlend, sleepBlend, crouchBlend;
+    private double groomBlend, groomLick, groomSide = -1.0, activeGroomSide = -1.0;
+    private double earTwitchL, earTwitchR;
     private double petSpeed, petVelX, petHandPhase, petRubHold, fastRubDuration, impatientHold;
     private double happyPetBlend, impatientBlend, petNuzzleX, petNuzzleY, nextPetParticleAt;
     private bool allowPetHand = true, dragActive;
@@ -50,6 +52,7 @@ internal sealed class CatScene : FrameworkElement
     private IdleAction idleAction = IdleAction.None;
     private double bugX = 148, bugY = 82, bugHeading = -1, swatFlash;
     private Point huntLeftTarget = new Point(186, 212), huntRightTarget = new Point(240, 212);
+    private Point groomLeftTarget = IdleLeft, groomRightTarget = IdleRight;
     private int huntSwatSide;
     public bool LabelsEnabled = true;
     public bool PasswordModeEnabled = true;
@@ -535,18 +538,27 @@ internal sealed class CatScene : FrameworkElement
                 }
                 if (showingGamepad)
                 {
-                    idleAction = IdleAction.Sleep;
-                    idleActionDuration = 60.0;
+                    idleAction = idleAction == IdleAction.Sleep ? IdleAction.EarTwitch : IdleAction.Sleep;
+                    idleActionDuration = idleAction == IdleAction.Sleep ? 50.0 : 12.0;
                 }
                 else
                 {
                     IdleAction prev = idleAction;
-                    if (prev == IdleAction.Sleep) idleAction = IdleAction.HuntBug;
-                    else if (prev == IdleAction.HuntBug) idleAction = IdleAction.Sleep;
-                    else idleAction = random.Next(2) == 0 ? IdleAction.Sleep : IdleAction.HuntBug;
-                    idleActionDuration = idleAction == IdleAction.Sleep
-                        ? 45.0 + random.NextDouble() * 35.0
-                        : 30.0 + random.NextDouble() * 20.0;
+                    IdleAction[] pool = { IdleAction.Sleep, IdleAction.HuntBug, IdleAction.Groom, IdleAction.EarTwitch };
+                    IdleAction picked = pool[random.Next(pool.Length)];
+                    if (picked == prev) picked = pool[(Array.IndexOf(pool, picked) + 1 + random.Next(pool.Length - 1)) % pool.Length];
+                    idleAction = picked;
+                    if (idleAction == IdleAction.Sleep)
+                        idleActionDuration = 42.0 + random.NextDouble() * 30.0;
+                    else if (idleAction == IdleAction.HuntBug)
+                        idleActionDuration = 24.0 + random.NextDouble() * 14.0;
+                    else if (idleAction == IdleAction.Groom)
+                    {
+                        groomSide = random.Next(2) == 0 ? -1.0 : 1.0;
+                        idleActionDuration = 16.0 + random.NextDouble() * 8.0;
+                    }
+                    else
+                        idleActionDuration = 9.0 + random.NextDouble() * 5.0;
                 }
                 idleActionStart = now;
             }
@@ -562,6 +574,10 @@ internal sealed class CatScene : FrameworkElement
         if (sleepBlend < .002 && targetSleep == 0) sleepBlend = 0;
 
         double targetCrouch = 0.0;
+        double targetGroom = 0.0;
+        double targetGroomLick = 0.0;
+        double targetTwitchL = 0.0;
+        double targetTwitchR = 0.0;
         swatFlash = 0.0;
         huntSwatSide = 0;
         if (idleAction == IdleAction.HuntBug)
@@ -662,9 +678,77 @@ internal sealed class CatScene : FrameworkElement
                 targetCrouch = 0.80;
             }
         }
+        else if (idleAction == IdleAction.Groom)
+        {
+            double elapsed = Math.Max(0, now - idleActionStart);
+            int sideFlip = ((int)(elapsed / 5.4)) % 2;
+            activeGroomSide = sideFlip == 0 ? groomSide : -groomSide;
+            double phase = elapsed % 2.7;
+            targetGroom = 1.0;
+            Point raisedPaw;
+            if (phase < 0.35)
+            {
+                double k = Smooth(phase / 0.35);
+                raisedPaw = Mix(new Point(214.0 + activeGroomSide * 24.0, 210.0), new Point(214.0 + activeGroomSide * 16.0, 120.0), k);
+            }
+            else if (phase < 2.15)
+            {
+                double lickPhase = ((phase - 0.35) % 0.60) / 0.60;
+                targetGroomLick = Math.Sin(lickPhase * Math.PI);
+                raisedPaw = new Point(
+                    214.0 + activeGroomSide * (16.5 - 2.2 * targetGroomLick),
+                    121.0 - 5.5 * targetGroomLick);
+            }
+            else
+            {
+                double k = Smooth((phase - 2.15) / 0.55);
+                raisedPaw = Mix(new Point(214.0 + activeGroomSide * 16.5, 121.0), new Point(214.0 + activeGroomSide * 19.0, 134.0), k);
+            }
+            if (activeGroomSide < 0)
+            {
+                groomLeftTarget = raisedPaw;
+                groomRightTarget = new Point(236.0, 226.0);
+            }
+            else
+            {
+                groomLeftTarget = new Point(190.0, 226.0);
+                groomRightTarget = raisedPaw;
+            }
+        }
+        else if (idleAction == IdleAction.EarTwitch)
+        {
+            double elapsed = Math.Max(0, now - idleActionStart);
+            int cycle = (int)(elapsed / 2.1);
+            double cp = elapsed % 2.1;
+            double flick = 0.0;
+            if (cp >= 0.18 && cp < 0.34)
+                flick = Math.Sin(((cp - 0.18) / 0.16) * Math.PI);
+            else if (cp >= 0.40 && cp < 0.56)
+                flick = Math.Sin(((cp - 0.40) / 0.16) * Math.PI);
+            else if (cp >= 1.15 && cp < 1.32)
+                flick = 0.72 * Math.Sin(((cp - 1.15) / 0.17) * Math.PI);
+
+            int mode = cycle % 3;
+            if (mode == 0) targetTwitchL = flick;
+            else if (mode == 1) targetTwitchR = flick;
+            else { targetTwitchL = flick; targetTwitchR = flick; }
+        }
+
         double crouchRate = 1 - Math.Exp(-dt * 6.0);
         crouchBlend += (targetCrouch - crouchBlend) * crouchRate;
         if (crouchBlend < .002 && targetCrouch == 0) crouchBlend = 0;
+
+        double groomRate = 1 - Math.Exp(-dt * 7.5);
+        groomBlend += (targetGroom - groomBlend) * groomRate;
+        if (groomBlend < .002 && targetGroom == 0) groomBlend = 0;
+        groomLick += (targetGroomLick - groomLick) * (1 - Math.Exp(-dt * 24.0));
+        if (groomLick < .002 && targetGroomLick == 0) groomLick = 0;
+
+        double twitchRate = 1 - Math.Exp(-dt * 38.0);
+        earTwitchL += (targetTwitchL - earTwitchL) * twitchRate;
+        earTwitchR += (targetTwitchR - earTwitchR) * twitchRate;
+        if (earTwitchL < .004 && targetTwitchL == 0) earTwitchL = 0;
+        if (earTwitchR < .004 && targetTwitchR == 0) earTwitchR = 0;
     }
 
     public void Advance(double now)
@@ -708,6 +792,7 @@ internal sealed class CatScene : FrameworkElement
         blink = Math.Max(Pulse(now - nextBlink, .23), Pulse(now - lastPet, .36));
         blink = Math.Max(blink, passwordBlend);
         if (sleepBlend > .15) blink = Math.Max(blink, Smooth((sleepBlend - .15) / .45));
+        if (groomBlend > .20) blink = Math.Max(blink, 0.88 * Smooth((groomBlend - .20) / .50));
 
         if (showingGamepad) AdvanceGamepad(now, dt);
         else AdvanceKeyboardMouse(now, dt);
@@ -795,6 +880,33 @@ internal sealed class CatScene : FrameworkElement
             double bty = Clamp((bugY - 105.0) / 75.0, -1, 1);
             gazeX += (btx - gazeX) * eyeEase;
             gazeY += (bty - gazeY) * eyeEase;
+            return;
+        }
+        if (idleAction == IdleAction.Groom)
+        {
+            grip += Clamp(-grip, -dt * 10, dt * 12);
+            mouseOffset += (-mouseOffset) * (1 - Math.Exp(-dt * 14));
+            double groomArmEase = 1 - Math.Exp(-dt * 16);
+            left = freeLeft = Mix(left, groomLeftTarget, groomArmEase);
+            right = Mix(right, groomRightTarget, groomArmEase);
+            leftActivity = activeGroomSide < 0 ? 0.28 : 0.0;
+            rightActivity = activeGroomSide > 0 ? 0.28 : 0.0;
+            gazeX += (activeGroomSide * 0.42 - gazeX) * eyeEase;
+            gazeY += (0.55 - gazeY) * eyeEase;
+            return;
+        }
+        if (idleAction == IdleAction.EarTwitch)
+        {
+            grip += Clamp(-grip, -dt * 10, dt * 12);
+            mouseOffset += (-mouseOffset) * (1 - Math.Exp(-dt * 14));
+            double calmArmEase = 1 - Math.Exp(-dt * 10);
+            left = freeLeft = Mix(left, new Point(190, 228), calmArmEase);
+            right = Mix(right, new Point(236, 228), calmArmEase);
+            leftActivity = rightActivity = 0;
+            double curiousX = (earTwitchR - earTwitchL) * 0.55;
+            double curiousY = -0.22 * Math.Max(earTwitchL, earTwitchR);
+            gazeX += (curiousX - gazeX) * eyeEase;
+            gazeY += (curiousY - gazeY) * eyeEase;
             return;
         }
 
@@ -974,7 +1086,12 @@ internal sealed class CatScene : FrameworkElement
             PetNuzzleX = petNuzzleX,
             PetNuzzleY = petNuzzleY,
             ScruffLift = lift,
-            DragSwing = dragSwingDeg
+            DragSwing = dragSwingDeg,
+            Groom = groomBlend,
+            GroomLick = groomLick,
+            GroomSide = activeGroomSide,
+            EarTwitchL = earTwitchL,
+            EarTwitchR = earTwitchR
         };
 
         bool lifted = lift > 0.005;

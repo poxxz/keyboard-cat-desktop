@@ -22,6 +22,7 @@ internal sealed class CompiledSkin
     public readonly Brush PupilBrush;
     public readonly Brush GlintBrush;
     public readonly Brush EarTipBrush;
+    public readonly Brush CalicoDarkBrush;
     public readonly Brush SiameseEarWash;
     public readonly Brush SiameseMaskWash;
     public readonly Brush SiameseMaskLowerWash;
@@ -36,6 +37,7 @@ internal sealed class CompiledSkin
     public readonly Pen FoldCreasePen;
     public readonly Color FurLightColor;
     public readonly Color FurDarkColor;
+    public readonly Color AccentColor;
     public readonly Color PawColor;
 
     public CompiledSkin(CatSkinData data)
@@ -56,6 +58,7 @@ internal sealed class CompiledSkin
 
         FurLightColor = Adjust(fur, 1.09, 6);
         FurDarkColor = Adjust(fur, 0.80, -5);
+        AccentColor = accent;
         PawColor = paw;
 
         BodyFur = AbsWash(FurLightColor, FurDarkColor, new Point(175, 102), new Point(255, 239));
@@ -73,7 +76,10 @@ internal sealed class CompiledSkin
         RightIrisBrush = RelWash(Adjust(rightEye, 1.15, 14), Adjust(rightEye, 0.78, -6), new Point(.35, .05), new Point(.65, .95));
         PupilBrush = Solid(Color.FromRgb(30, 24, 22));
         GlintBrush = Solid(Color.FromRgb(255, 252, 240));
-        EarTipBrush = Solid(Adjust(fur, 0.42, -10));
+        EarTipBrush = Solid(Adjust(accent, 0.90, -4));
+
+        bool darkFur = (fur.R * 0.299 + fur.G * 0.587 + fur.B * 0.114) < 88;
+        CalicoDarkBrush = Solid(darkFur ? Color.FromRgb(242, 230, 212) : Color.FromRgb(54, 48, 46));
 
         SiameseEarWash = BuildSiameseEar(accent);
         SiameseMaskWash = BuildRadialFade(accent, 235, 185);
@@ -84,7 +90,6 @@ internal sealed class CompiledSkin
         AccEdgePen = MakePen(Adjust(acc, 0.56, -12), 1.15);
         FoldCreasePen = MakePen(Adjust(fur, 0.62, -14), 1.45);
 
-        bool darkFur = (fur.R * 0.299 + fur.G * 0.587 + fur.B * 0.114) < 88;
         Color lidColor = darkFur ? Adjust(leftEye, 0.95, 0) : Adjust(fur, 0.48, -14);
         LidPen = MakePen(lidColor, 2.1);
         EyeEdgePen = MakePen(darkFur ? Color.FromArgb(140, 20, 20, 22) : Adjust(fur, 0.42, -16), 1.05);
@@ -462,9 +467,14 @@ internal static class CustomSkinArt
         // 3. Optional mid-layer (gamepad or hugged keyboard & mouse during drag)
         if (between != null) between(dc);
 
-        // 4. Arms
-        DrawArm(dc, skin, false, rightPaw, lean, rightActivity, pawRaised, sxScale, syScale);
-        DrawArm(dc, skin, true, leftPaw, lean, leftActivity, pawRaised, sxScale, syScale);
+        // 4. Arms (grooming paw is drawn in front of the chin right under the licking tongue)
+        double groom = CatArt.Limit(mood.Groom, 0, 1) * (1 - sleep) * (1 - lift);
+        double groomSide = mood.GroomSide < 0 ? -1.0 : 1.0;
+        double groomLick = CatArt.Limit(mood.GroomLick, 0, 1) * groom;
+        bool groomLeftFront = groom > 0.08 && groomSide < 0;
+        bool groomRightFront = groom > 0.08 && groomSide > 0;
+        if (!groomRightFront) DrawArm(dc, skin, false, rightPaw, lean, rightActivity, pawRaised, sxScale, syScale);
+        if (!groomLeftFront) DrawArm(dc, skin, true, leftPaw, lean, leftActivity, pawRaised, sxScale, syScale);
 
         // Fluffy chest ruff sits over upper arms when selected on fluffy base.
         if (fluffy && (skin.Data.BellyStyle == SkinBellyStyle.Ruff || skin.Data.BellyStyle == SkinBellyStyle.FullBelly))
@@ -480,23 +490,40 @@ internal static class CustomSkinArt
         }
 
         // 5. Head
+        double twitchL = CatArt.Limit(mood.EarTwitchL, 0, 1) * (1 - sleep) * (1 - lift);
+        double twitchR = CatArt.Limit(mood.EarTwitchR, 0, 1) * (1 - sleep) * (1 - lift);
         double nuzzleX = mood.PetNuzzleX * 4.5 * happy;
         double nuzzleY = mood.PetNuzzleY * 2.5 * happy - 1.5 * happy + 2.2 * impatient;
         double shakeX = impatient > 0.02 ? Math.Sin(t * 26.0) * 1.9 * impatient : 0;
-        double hx = 214 - (fluffy ? 33.5 : 36.8) * lean + gx * 3.2 * (1 - sleep) - 2.0 * sleep + nuzzleX + shakeX - 9.5 * lift;
-        double hyNorm = (fluffy ? TabbyArt.BodyTop - 2 : 86) + breath + gy * 2.0 + lean * 1.4 + 12.0 * crouch + nuzzleY + 5.0 * lift;
+        double hx = 214 - (fluffy ? 33.5 : 36.8) * lean + gx * 3.2 * (1 - sleep) - 2.0 * sleep + nuzzleX + shakeX - 9.5 * lift + groomSide * 4.2 * groom;
+        double hyNorm = (fluffy ? TabbyArt.BodyTop - 2 : 86) + breath + gy * 2.0 + lean * 1.4 + 12.0 * crouch + nuzzleY + 5.0 * lift
+            + (6.5 + 3.2 * groomLick) * groom - Math.Max(twitchL, twitchR) * 1.6;
         double hy = hyNorm + ((fluffy ? 186 : 180) + breath - hyNorm) * sleep;
-        double hrot = (gx * 2.8 - lean * 2.4 + mood.PetNuzzleX * 6.5 * happy + Math.Sin(t * 5.2) * 2.6 * happy + Math.Sin(t * 22.0) * 2.8 * impatient) * (1 - sleep) * (1 - lift)
+        double hrot = (gx * 2.8 - lean * 2.4 + mood.PetNuzzleX * 6.5 * happy + Math.Sin(t * 5.2) * 2.6 * happy + Math.Sin(t * 22.0) * 2.8 * impatient
+            + groomSide * (8.5 + 3.5 * groomLick) * groom + (twitchR - twitchL) * 3.8) * (1 - sleep) * (1 - lift)
             - 8.5 * sleep - 10.5 * lift - mood.DragSwing * 0.15 * lift;
         double browAnger = Math.Max(mood.Anger, impatient * 0.92) * (1 - lift);
         double eyeBoost = Math.Max(crouch, lift * 0.55);
         double headScaleX = fluffy ? 1.04 : (chubby ? 1.04 : 1.0);
+        bool isFold = skin.Data.BodyBase == SkinBodyBase.FoldEar;
 
         dc.PushTransform(new TranslateTransform(hx, hy));
         dc.PushTransform(new RotateTransform(hrot));
         dc.PushTransform(new ScaleTransform(headScaleX, 1.0));
-        DrawHead(dc, skin, gx, gy, blink, browAnger, angerBreath, eyeBoost, happy);
-        double blushAmt = Math.Max(happy, lift * 0.38);
+        if (isFold)
+        {
+            DrawHead(dc, skin, gx, gy, blink, browAnger, angerBreath, eyeBoost, happy, twitchL, twitchR);
+        }
+        else
+        {
+            CatArt.DrawHeadWithEarTwitch(dc, twitchL, twitchR, delegate
+            {
+                DrawHead(dc, skin, gx, gy, blink, browAnger, angerBreath, eyeBoost, happy, 0, 0);
+            });
+        }
+        if (twitchL > .08) CatArt.DrawEarTwitchMark(dc, -1, twitchL);
+        if (twitchR > .08) CatArt.DrawEarTwitchMark(dc, 1, twitchR);
+        double blushAmt = Math.Max(happy, Math.Max(lift * 0.38, groom * 0.45));
         if (blushAmt > .05) CatArt.DrawBlush(dc, blushAmt);
         if (mood.Sweat > .01) CatArt.DrawSweat(dc, t, mood.Sweat);
         if (mood.Anger > .01 && lift < .5) CatArt.DrawAnger(dc, t, mood.Anger);
@@ -504,6 +531,19 @@ internal static class CustomSkinArt
         dc.Pop();
         dc.Pop();
         dc.Pop();
+
+        if (groomRightFront) DrawArm(dc, skin, false, rightPaw, lean, rightActivity, pawRaised, sxScale, syScale);
+        if (groomLeftFront) DrawArm(dc, skin, true, leftPaw, lean, leftActivity, pawRaised, sxScale, syScale);
+        if (groomLick > .04)
+        {
+            dc.PushTransform(new TranslateTransform(hx, hy));
+            dc.PushTransform(new RotateTransform(hrot));
+            dc.PushTransform(new ScaleTransform(headScaleX, 1.0));
+            CatArt.DrawGroomTongue(dc, groomSide, groomLick, groom);
+            dc.Pop();
+            dc.Pop();
+            dc.Pop();
+        }
     }
 
     private static void DrawTail(DrawingContext dc, CompiledSkin skin, bool fluffy, double t, CatMood mood,
@@ -571,9 +611,7 @@ internal static class CustomSkinArt
         StreamGeometry tail = skin.Data.TailStyle == SkinTailStyle.ThickPlush
             ? BuildPlushTailGeometry(wave, tip, droop)
             : CatArt.BuildTailGeometry(wave, tip, droop);
-        bool darkWholeTail = skin.Data.FacePattern == SkinFacePattern.SiamesePoint && skin.Data.TailStyle == SkinTailStyle.Solid;
-        Brush tBrush = darkWholeTail ? skin.AccentBrush : skin.TailFur;
-        dc.DrawGeometry(tBrush, null, tail);
+        dc.DrawGeometry(skin.TailFur, null, tail);
 
         if (skin.Data.TailStyle == SkinTailStyle.TabbyRings)
         {
@@ -747,7 +785,7 @@ internal static class CustomSkinArt
 
         Brush armFill;
         if (skin.Data.PawStyle == SkinPawStyle.DarkPoints)
-            armFill = CatArt.ArmGradient(skin.FurLightColor, skin.FurDarkColor, 0.42, skin.PawColor, a, paw);
+            armFill = CatArt.ArmGradient(skin.FurLightColor, skin.FurDarkColor, 0.42, skin.AccentColor, a, paw);
         else
             armFill = CatArt.ArmGradient(skin.FurLightColor, skin.FurLightColor, 0.30, skin.FurDarkColor, a, paw);
 
@@ -786,7 +824,7 @@ internal static class CustomSkinArt
         }
         else if (skin.Data.PawStyle == SkinPawStyle.DarkPoints)
         {
-            dc.DrawEllipse(skin.PawBrush, null, paw, pawRadius + .35, pawRadius * (.94 - .06 * activity));
+            dc.DrawEllipse(skin.AccentBrush, null, paw, pawRadius + .35, pawRadius * (.94 - .06 * activity));
         }
         else
         {
@@ -806,7 +844,8 @@ internal static class CustomSkinArt
     }
 
     private static void DrawHead(DrawingContext dc, CompiledSkin skin, double gx, double gy, double blink,
-                                 double anger, double angerBreath, double crouch, double happyPet)
+                                 double anger, double angerBreath, double crouch, double happyPet,
+                                 double twitchL = 0, double twitchR = 0)
     {
         bool isFold = skin.Data.BodyBase == SkinBodyBase.FoldEar;
         Geometry headGeo = SelectHeadGeometry(skin.Data.BodyBase);
@@ -821,7 +860,7 @@ internal static class CustomSkinArt
         }
         if (skin.Data.DarkEarTips && !isFold)
         {
-            dc.PushOpacity(.85);
+            dc.PushOpacity(.88);
             dc.DrawGeometry(skin.EarTipBrush, null, EarTipLeft);
             dc.DrawGeometry(skin.EarTipBrush, null, EarTipRight);
             dc.Pop();
@@ -912,8 +951,8 @@ internal static class CustomSkinArt
                 break;
 
             case SkinFacePattern.Calico:
-                dc.DrawGeometry(skin.BellyBrush, null, headGeo);
-                dc.DrawGeometry(skin.EarTipBrush, null, CalicoLeftPatch);
+                // Base coat stays FurColor so head & torso always match; left patch adds 3rd calico ink, right patch uses AccentColor.
+                dc.DrawGeometry(skin.CalicoDarkBrush, null, CalicoLeftPatch);
                 dc.DrawGeometry(skin.AccentBrush, null, CalicoRightPatch);
                 if (!isFold)
                 {
@@ -926,7 +965,7 @@ internal static class CustomSkinArt
                 break;
 
             case SkinFacePattern.CowSpots:
-                dc.DrawGeometry(skin.BellyBrush, null, headGeo);
+                // Base coat stays FurColor; cow spots use AccentColor.
                 dc.DrawGeometry(skin.AccentBrush, null, CowHeadSpots);
                 if (!isFold)
                 {
@@ -948,33 +987,28 @@ internal static class CustomSkinArt
                 break;
 
             default:
-                if (skin.Data.BellyStyle == SkinBellyStyle.FullBelly)
-                {
-                    dc.PushTransform(new TranslateTransform(gx * 2.6, 0));
-                    dc.DrawGeometry(skin.BellyBrush, null, MuzzleOval);
-                    DrawNoseAndMouth(dc, skin);
-                    dc.Pop();
-                }
-                else
-                {
-                    dc.PushTransform(new TranslateTransform(gx * 2.6, 0));
-                    DrawNoseAndMouth(dc, skin);
-                    dc.Pop();
-                }
+                dc.PushTransform(new TranslateTransform(gx * 2.6, 0));
+                DrawNoseAndMouth(dc, skin);
+                dc.Pop();
                 break;
         }
         dc.Pop(); // end head clip
 
-        // Scottish Fold folded ear flaps sit over the upper temples.
+        // Scottish Fold folded ear flaps sit over the upper temples and bounce during EarTwitch.
         if (isFold)
         {
             Brush flapBrush = skin.Data.DarkEarTips ? skin.EarTipBrush : skin.HeadFur;
+            dc.PushTransform(new RotateTransform(-16.0 * twitchL, -22.0, -45.0));
             dc.DrawGeometry(flapBrush, null, FoldEarFlapL);
+            dc.Pop();
+            dc.PushTransform(new RotateTransform(16.0 * twitchR, 22.0, -45.0));
             dc.DrawGeometry(flapBrush, null, FoldEarFlapR);
-            dc.DrawGeometry(null, skin.FoldCreasePen, FoldEarCrease);
+            dc.Pop();
+            if (twitchL <= 0.02 && twitchR <= 0.02)
+                dc.DrawGeometry(null, skin.FoldCreasePen, FoldEarCrease);
         }
 
-        // Eyes (supports heterochromia + SleekOval / RoundCute pupils)
+        // Eyes (supports heterochromia + SleekOval / RoundCute / BeadMatte pupils)
         DrawEye(dc, skin, -1, gx, gy, CatArt.Limit(blink, 0, 1), anger, angerBreath, crouch, happyPet);
         DrawEye(dc, skin, 1, gx, gy, CatArt.Limit(blink, 0, 1), anger, angerBreath, crouch, happyPet);
 
@@ -1025,7 +1059,15 @@ internal static class CustomSkinArt
             dc.DrawGeometry(irisBrush, skin.EyeEdgePen, iris);
             dc.PushClip(iris);
             double boost = 1.0 + 0.16 * crouch;
-            if (skin.Data.PupilStyle == SkinPupilStyle.RoundCute)
+            if (skin.Data.PupilStyle == SkinPupilStyle.BeadMatte)
+            {
+                // Wednesday-style matte bead pupil: solid dark oval with zero highlight glints.
+                Point p = new Point(x + gx * 7.6, y + gy * 6.5);
+                double rx = (4.4 + Math.Abs(gy) * 0.8) * boost;
+                double ry = 8.1 * boost;
+                dc.DrawEllipse(skin.PupilBrush, null, p, rx, ry);
+            }
+            else if (skin.Data.PupilStyle == SkinPupilStyle.RoundCute)
             {
                 Point p = new Point(x + gx * 5.2, y + gy * 4.2);
                 dc.DrawEllipse(skin.PupilBrush, null, p, 7.6 * boost, 9.6 * boost);

@@ -11,7 +11,7 @@ public enum SkinBellyStyle { None, Bib, FullBelly, Ruff, HeartChest, TabbyBelly 
 public enum SkinBodyPattern { None, FlankStripes, ClassicSwirl, Spotted, Patches, BackSaddle }
 public enum SkinPawStyle { BodyColor, Socks, HighBoots, DarkPoints, TabbyBracelets }
 public enum SkinTailStyle { Solid, ThickPlush, TabbyRings, LightTip, DarkTip, BobtailPom }
-public enum SkinPupilStyle { SleekOval, RoundCute }
+public enum SkinPupilStyle { SleekOval, RoundCute, BeadMatte }
 public enum SkinAccessory { None, CollarBell, BowTie, HeadRibbon, Glasses, HeadOrange, Ahoge }
 
 // Pure-vector user-customizable cat skin data (.catskin XML).
@@ -43,6 +43,84 @@ internal sealed class CatSkinData
     public CatSkinData Clone()
     {
         return (CatSkinData)MemberwiseClone();
+    }
+
+    public bool FaceUsesAccent()
+    {
+        return FacePattern == SkinFacePattern.AmericanShorthair ||
+               FacePattern == SkinFacePattern.RagdollMask ||
+               FacePattern == SkinFacePattern.CoffeeMask ||
+               FacePattern == SkinFacePattern.TabbyM ||
+               FacePattern == SkinFacePattern.SiamesePoint ||
+               FacePattern == SkinFacePattern.Calico ||
+               FacePattern == SkinFacePattern.CowSpots ||
+               FacePattern == SkinFacePattern.Tortie;
+    }
+
+    public bool FaceUsesBellyMask()
+    {
+        return FacePattern == SkinFacePattern.AmericanShorthair ||
+               FacePattern == SkinFacePattern.RagdollMask ||
+               FacePattern == SkinFacePattern.BlueBicolor ||
+               FacePattern == SkinFacePattern.CoffeeMask ||
+               FacePattern == SkinFacePattern.Tuxedo ||
+               (FacePattern == SkinFacePattern.TabbyM && BellyStyle != SkinBellyStyle.None);
+    }
+
+    public bool UsesAccentColor()
+    {
+        return FaceUsesAccent() ||
+               BodyPattern != SkinBodyPattern.None ||
+               BellyStyle == SkinBellyStyle.TabbyBelly ||
+               PawStyle == SkinPawStyle.DarkPoints ||
+               PawStyle == SkinPawStyle.TabbyBracelets ||
+               TailStyle == SkinTailStyle.TabbyRings ||
+               TailStyle == SkinTailStyle.DarkTip ||
+               TailStyle == SkinTailStyle.BobtailPom ||
+               DarkEarTips;
+    }
+
+    public bool UsesBellyColor()
+    {
+        return BellyStyle != SkinBellyStyle.None ||
+               FaceUsesBellyMask() ||
+               TailStyle == SkinTailStyle.LightTip;
+    }
+
+    public bool UsesPawColor()
+    {
+        return PawStyle == SkinPawStyle.Socks ||
+               PawStyle == SkinPawStyle.HighBoots ||
+               PawStyle == SkinPawStyle.TabbyBracelets;
+    }
+
+    public string AccentUsageHint()
+    {
+        List<string> parts = new List<string>();
+        if (FaceUsesAccent()) parts.Add(FacePattern == SkinFacePattern.SiamesePoint || FacePattern == SkinFacePattern.RagdollMask ? "重点面罩" : "脸纹");
+        if (DarkEarTips) parts.Add("耳尖");
+        if (BodyPattern != SkinBodyPattern.None || BellyStyle == SkinBellyStyle.TabbyBelly) parts.Add("身纹");
+        if (PawStyle == SkinPawStyle.DarkPoints) parts.Add("重点爪");
+        else if (PawStyle == SkinPawStyle.TabbyBracelets) parts.Add("手环");
+        if (TailStyle == SkinTailStyle.TabbyRings || TailStyle == SkinTailStyle.DarkTip || TailStyle == SkinTailStyle.BobtailPom) parts.Add("尾纹");
+        return parts.Count > 0 ? string.Join("/", parts.ToArray()) : "";
+    }
+
+    public string BellyUsageHint()
+    {
+        List<string> parts = new List<string>();
+        if (FaceUsesBellyMask()) parts.Add("白面罩");
+        if (BellyStyle != SkinBellyStyle.None) parts.Add("胸腹");
+        if (TailStyle == SkinTailStyle.LightTip) parts.Add("浅尾尖");
+        return parts.Count > 0 ? string.Join("/", parts.ToArray()) : "";
+    }
+
+    public string PawUsageHint()
+    {
+        if (PawStyle == SkinPawStyle.Socks) return "白手套";
+        if (PawStyle == SkinPawStyle.HighBoots) return "长筒袜";
+        if (PawStyle == SkinPawStyle.TabbyBracelets) return "爪尖";
+        return "";
     }
 
     public static Color ParseHex(string hex, Color fallback)
@@ -90,7 +168,7 @@ internal sealed class CatSkinData
                 d.WhiskerColor = "#F4F6F9"; d.LeftEyeColor = "#F0A82C"; d.RightEyeColor = "#F0A82C";
                 d.PupilStyle = SkinPupilStyle.RoundCute;
                 d.FacePattern = SkinFacePattern.BlueBicolor; d.BellyStyle = SkinBellyStyle.FullBelly;
-                d.BodyPattern = SkinBodyPattern.BackSaddle; d.PawStyle = SkinPawStyle.HighBoots;
+                d.BodyPattern = SkinBodyPattern.None; d.PawStyle = SkinPawStyle.HighBoots;
                 d.TailStyle = SkinTailStyle.ThickPlush; d.Accessory = SkinAccessory.BowTie;
                 d.AccessoryColor = "#5B8EC9";
                 return d;
@@ -160,6 +238,7 @@ internal sealed class CatSkinData
                 d.FurColor = "#262428"; d.AccentColor = "#1B191D"; d.BellyColor = "#262428";
                 d.PawColor = "#262428"; d.InnerEarColor = "#3B353B"; d.NoseColor = "#443C42";
                 d.WhiskerColor = "#555054"; d.LeftEyeColor = "#F2BF3C"; d.RightEyeColor = "#F2BF3C";
+                d.PupilStyle = SkinPupilStyle.BeadMatte;
                 d.FacePattern = SkinFacePattern.None; d.BellyStyle = SkinBellyStyle.None;
                 d.BodyPattern = SkinBodyPattern.None; d.PawStyle = SkinPawStyle.BodyColor;
                 d.TailStyle = SkinTailStyle.Solid; d.Accessory = SkinAccessory.CollarBell;

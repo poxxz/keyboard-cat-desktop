@@ -333,38 +333,71 @@ public static partial class CatArt
         // forelegs: the gamepad (or hugged keyboard & mouse while dragged)
         // sits in front of the chest and under the paws that hold it.
         if (between != null) between(dc);
+        double groom = Limit(mood.Groom, 0, 1) * (1 - sleep) * (1 - lift);
+        double groomSide = mood.GroomSide < 0 ? -1.0 : 1.0;
+        double groomLick = Limit(mood.GroomLick, 0, 1) * groom;
+        bool groomLeftFront = groom > 0.08 && groomSide < 0;
+        bool groomRightFront = groom > 0.08 && groomSide > 0;
         if (styled)
         {
-            ArmStyled(dc,false,rightPaw,lean,rightActivity,style,pawRaised,sxScale,syScale);
-            ArmStyled(dc,true,leftPaw,lean,leftActivity,style,pawRaised,sxScale,syScale);
+            if (!groomRightFront) ArmStyled(dc,false,rightPaw,lean,rightActivity,style,pawRaised,sxScale,syScale);
+            if (!groomLeftFront) ArmStyled(dc,true,leftPaw,lean,leftActivity,style,pawRaised,sxScale,syScale);
         }
         else
         {
-            Arm(dc,false,rightPaw,lean,rightActivity,ginger,pawRaised,sxScale,syScale);
-            Arm(dc,true,leftPaw,lean,leftActivity,ginger,pawRaised,sxScale,syScale);
+            if (!groomRightFront) Arm(dc,false,rightPaw,lean,rightActivity,ginger,pawRaised,sxScale,syScale);
+            if (!groomLeftFront) Arm(dc,true,leftPaw,lean,leftActivity,ginger,pawRaised,sxScale,syScale);
         }
 
+        double twitchL = Limit(mood.EarTwitchL, 0, 1) * (1 - sleep) * (1 - lift);
+        double twitchR = Limit(mood.EarTwitchR, 0, 1) * (1 - sleep) * (1 - lift);
         double nuzzleX = mood.PetNuzzleX * 4.5 * happy;
         double nuzzleY = mood.PetNuzzleY * 2.5 * happy - 1.5 * happy + 2.2 * impatient;
         double shakeX = impatient > 0.02 ? Math.Sin(t * 26.0) * 1.9 * impatient : 0;
-        double hx = 214 - 36.8*lean + gx*3.2*(1 - sleep) - 2.0*sleep + nuzzleX + shakeX - 9.5*lift;
-        double hyNorm = 86 + breath + gy*2.0 + lean*1.4 + 12.0*crouch + nuzzleY + 5.0*lift;
+        double hx = 214 - 36.8*lean + gx*3.2*(1 - sleep) - 2.0*sleep + nuzzleX + shakeX - 9.5*lift + groomSide * 4.2 * groom;
+        double hyNorm = 86 + breath + gy*2.0 + lean*1.4 + 12.0*crouch + nuzzleY + 5.0*lift
+            + (6.5 + 3.2 * groomLick) * groom - Math.Max(twitchL, twitchR) * 1.6;
         double hy = hyNorm + (180 + breath - hyNorm) * sleep;
-        double hrot = (gx*2.8 - lean*2.4 + mood.PetNuzzleX * 6.5 * happy + Math.Sin(t * 5.2) * 2.6 * happy + Math.Sin(t * 22.0) * 2.8 * impatient)*(1 - sleep)*(1 - lift)
+        double hrot = (gx*2.8 - lean*2.4 + mood.PetNuzzleX * 6.5 * happy + Math.Sin(t * 5.2) * 2.6 * happy + Math.Sin(t * 22.0) * 2.8 * impatient
+            + groomSide * (8.5 + 3.5 * groomLick) * groom + (twitchR - twitchL) * 3.8)*(1 - sleep)*(1 - lift)
             - 8.5*sleep - 10.5*lift - mood.DragSwing * 0.15 * lift;
         double browAnger = Math.Max(mood.Anger, impatient * 0.92) * (1 - lift);
         double eyeBoost = Math.Max(crouch, lift * 0.55);
         dc.PushTransform(new TranslateTransform(hx, hy));
         dc.PushTransform(new RotateTransform(hrot));
-        if (styled) DrawHeadStyled(dc, style, gx, gy, blink, browAnger, angerBreath, eyeBoost, happy);
-        else DrawHeadMood(dc, ginger, gx, gy, blink, browAnger, angerBreath, eyeBoost, happy);
-        double blushAmt = Math.Max(happy, lift * 0.38);
+        DrawHeadWithEarTwitch(dc, twitchL, twitchR, delegate
+        {
+            if (styled) DrawHeadStyled(dc, style, gx, gy, blink, browAnger, angerBreath, eyeBoost, happy);
+            else DrawHeadMood(dc, ginger, gx, gy, blink, browAnger, angerBreath, eyeBoost, happy);
+        });
+        if (twitchL > .08) DrawEarTwitchMark(dc, -1, twitchL);
+        if (twitchR > .08) DrawEarTwitchMark(dc, 1, twitchR);
+        double blushAmt = Math.Max(happy, Math.Max(lift * 0.38, groom * 0.45));
         if (blushAmt > .05) DrawBlush(dc, blushAmt);
         if (mood.Sweat > .01) DrawSweat(dc, t, mood.Sweat);
         if (mood.Anger > .01 && lift < .5) DrawAnger(dc, t, mood.Anger);
         if (impatient > .05) DrawImpatientMark(dc, t, impatient);
         dc.Pop();
         dc.Pop();
+
+        if (styled)
+        {
+            if (groomRightFront) ArmStyled(dc,false,rightPaw,lean,rightActivity,style,pawRaised,sxScale,syScale);
+            if (groomLeftFront) ArmStyled(dc,true,leftPaw,lean,leftActivity,style,pawRaised,sxScale,syScale);
+        }
+        else
+        {
+            if (groomRightFront) Arm(dc,false,rightPaw,lean,rightActivity,ginger,pawRaised,sxScale,syScale);
+            if (groomLeftFront) Arm(dc,true,leftPaw,lean,leftActivity,ginger,pawRaised,sxScale,syScale);
+        }
+        if (groomLick > .04)
+        {
+            dc.PushTransform(new TranslateTransform(hx, hy));
+            dc.PushTransform(new RotateTransform(hrot));
+            DrawGroomTongue(dc, groomSide, groomLick, groom);
+            dc.Pop();
+            dc.Pop();
+        }
     }
 
     // Head-space bounds including whiskers are approximately (-57,-64) to (57,35).
