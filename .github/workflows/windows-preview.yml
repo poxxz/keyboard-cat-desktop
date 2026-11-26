@@ -1,0 +1,85 @@
+name: Windows draft preview
+
+on:
+  push:
+    branches:
+      - 'feat/skin-workshop-png'
+  workflow_dispatch:
+
+permissions:
+  contents: write
+
+jobs:
+  build-draft:
+    runs-on: windows-latest
+    steps:
+      - uses: actions/checkout@v4
+
+      - name: Install NSIS
+        run: choco install nsis -y
+
+      - name: Build Windows app and installer
+        shell: pwsh
+        run: .\windows\build.ps1
+
+      - name: Prepare ASCII preview assets
+        shell: pwsh
+        run: |
+          $exe = (Resolve-Path windows/build/键盘小黑猫.exe).Path
+          $installer = (Get-ChildItem windows/build -Filter '*Windows安装包.exe').FullName
+          if (-not $installer) { throw 'Installer not found in windows/build.' }
+          $outDir = Join-Path (Split-Path $exe) 'preview-assets'
+          [void][IO.Directory]::CreateDirectory($outDir)
+          Copy-Item $exe (Join-Path $outDir 'KeyboardCat-PNGWorkshop-Preview.exe')
+          Copy-Item $installer (Join-Path $outDir 'KeyboardCat-PNGWorkshop-Preview-Setup.exe')
+          Get-ChildItem $outDir
+
+      - name: Upload workflow artifact
+        uses: actions/upload-artifact@v4
+        with:
+          name: keyboard-cat-png-workshop-preview
+          path: windows/build/preview-assets/*.exe
+          if-no-files-found: error
+
+      - name: Create Draft Release
+        shell: pwsh
+        env:
+          GH_TOKEN: ${{ github.token }}
+        run: |
+          $tag = 'preview-skin-workshop-png'
+          $shortSha = $env:GITHUB_SHA.Substring(0, 7)
+          $title = "键盘小黑猫 · PNG 贴图皮肤工坊测试版 ($shortSha)"
+          $outDir = (Resolve-Path windows/build/preview-assets).Path
+          $exe = Join-Path $outDir 'KeyboardCat-PNGWorkshop-Preview.exe'
+          $installer = Join-Path $outDir 'KeyboardCat-PNGWorkshop-Preview-Setup.exe'
+
+          # Remove any previous draft release with this tag so the preview stays tidy.
+          $drafts = gh api "repos/$($env:GITHUB_REPOSITORY)/releases?per_page=30" | ConvertFrom-Json
+          foreach ($rel in $drafts) {
+            if ($rel.draft -and $rel.tag_name -eq $tag) {
+              Write-Host "Deleting previous draft release id=$($rel.id)..."
+              gh api -X DELETE "repos/$($env:GITHUB_REPOSITORY)/releases/$($rel.id)"
+            }
+          }
+
+          $notes = @"
+基于 v1.7.3 构建的 **PNG 贴图进阶皮肤工坊** 测试预览版（分支 ``feat/skin-workshop-png``，提交 ``$shortSha``）。
+
+### 下载说明
+- **KeyboardCat-PNGWorkshop-Preview.exe**：免安装测试版，直接双击运行即可体验（推荐用于方案对比，不影响现有 1.7.3 安装）。
+- **KeyboardCat-PNGWorkshop-Preview-Setup.exe**：Windows 安装包。
+
+### 体验方式
+1. 右键桌面小猫或点击右下角托盘图标，在「外观装扮 → 皮肤工坊 (PNG) →」或托盘菜单「皮肤工坊 (PNG 贴图)…」打开工坊。
+2. 支持 8 层独立 PNG 槽位（常态头 / 闭眼头 / 生气头 / 身体 / 尾巴 / 左爪 / 右爪 / 头饰挂件）、直接拖入 PNG、预览区拖拽定位与滚轮缩放、8 种动画测试、一键生成示例头饰 PNG、一键提取底模 PNG、导出 4x 绘画模板，以及 ``.kcat`` 皮肤包导入/导出。
+"@
+
+          $created = $false
+          for ($attempt = 1; $attempt -le 4; $attempt++) {
+            gh release create $tag --draft --target $env:GITHUB_SHA --title $title --notes $notes $exe $installer
+            if ($LASTEXITCODE -eq 0) { $created = $true; break }
+            Write-Host "gh release create attempt $attempt failed ($LASTEXITCODE), retrying in 6s..."
+            Start-Sleep -Seconds 6
+          }
+          if (-not $created) { throw "Failed to create draft release $tag after 4 attempts." }
+          Write-Host "Draft release $tag created successfully."
