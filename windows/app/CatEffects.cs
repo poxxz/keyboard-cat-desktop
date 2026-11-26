@@ -366,13 +366,14 @@ public static partial class CatArt
 
     // Open warm petting hand pointing gently down-left over the cat's fur.
     private static readonly Geometry OpenHandShape = Shape(
-        "M -2,-11 C 0,-13 3.2,-12.5 3.6,-9.8 L 4.4,-3.8 " +
-        "C 5.2,-9.5 8.5,-9.8 9.0,-6.8 L 8.4,-1.0 " +
-        "C 10.2,-5.8 13.0,-5.2 12.6,-2.0 L 10.8,4.6 " +
-        "C 9.8,9.2 5.6,12.2 0.4,12.2 C -4.6,12.2 -8.2,9.2 -9.4,4.8 " +
-        "L -12.2,-0.8 C -13.4,-3.2 -11.4,-5.4 -9.2,-4.0 L -6.0,-1.4 " +
-        "L -6.6,-8.6 C -6.8,-11.2 -3.8,-12.0 -2,-11 Z");
-    private static readonly Geometry OpenHandLines = Shape("M -2.2,-1.5 L -1.8,4.2 M 2.5,-0.5 L 2.2,4.5 M 6.4,0.8 L 5.8,4.8");
+        "M -2.2,-3.4 " +
+        "L -1.8,-10.2 C -1.8,-13.0 2.0,-13.0 2.2,-10.2 L 2.6,-3.2 " +
+        "L 4.4,-8.8 C 5.2,-11.4 8.6,-10.4 7.8,-7.6 L 6.4,-1.8 " +
+        "L 8.8,-5.4 C 10.0,-7.4 13.0,-6.0 11.8,-3.4 L 9.8,4.0 " +
+        "C 8.8,9.2 4.8,12.2 -0.2,12.2 C -5.0,12.2 -8.4,9.2 -9.4,4.6 " +
+        "L -12.6,-0.2 C -14.0,-2.4 -12.2,-5.0 -9.8,-3.6 L -6.4,-1.2 " +
+        "L -7.8,-8.2 C -8.4,-11.0 -4.8,-12.0 -3.8,-9.2 Z");
+    private static readonly Geometry OpenHandLines = Shape("M -4.2,2.4 Q 0.4,0.4 5.4,2.8 M -1.6,5.6 Q 1.6,4.8 4.4,6.0");
 
     // Compact curled grabbing hand while dragging the cat.
     private static readonly Geometry GrabHandShape = Shape(
